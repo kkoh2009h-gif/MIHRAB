@@ -302,6 +302,9 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     var loadError by remember { mutableStateOf(false) }
     var surahMenu by remember { mutableStateOf(false) }
     var readingFontScale by remember { mutableFloatStateOf(prefs.getFloat("quran_font_scale", 0.5f).coerceIn(0f, 1f)) }
+    var nightReading by remember { mutableStateOf(prefs.getBoolean("quran_night_reading", false)) }
+    val readingPaper = if (nightReading) Color(0xFF172333) else Color(0xFFFFFDF5)
+    val readingInk = if (nightReading) Color(0xFFE8DFC9) else Color(0xFF33291F)
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
 
@@ -410,6 +413,16 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                     onValueChangeFinished = { prefs.edit().putFloat("quran_font_scale", readingFontScale).apply() },
                     valueRange = 0f..1f
                 )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("الوضع الليلي للقراءة", color = Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("خلفية داكنة مريحة مع حفظ اختيارك", color = Ink.copy(alpha = .6f), fontSize = 11.sp)
+                    }
+                    Switch(checked = nightReading, onCheckedChange = {
+                        nightReading = it
+                        prefs.edit().putBoolean("quran_night_reading", it).apply()
+                    })
+                }
             }
         }
         when {
@@ -443,9 +456,9 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                         }
                     }
                     Surface(
-                        color = Color(0xFFFFFDF5),
+                        color = readingPaper,
                         shape = RoundedCornerShape(5.dp),
-                        border = BorderStroke(1.dp, Gold.copy(alpha = .75f)),
+                        border = BorderStroke(1.dp, Gold.copy(alpha = if (nightReading) .9f else .75f)),
                         modifier = Modifier.fillMaxWidth()
                             .pointerInput(currentPage) {
                                 var drag = 0f
@@ -480,7 +493,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                                 if (verses.first().second == 1 && surahNumber != 1 && surahNumber != 9) {
                                     Text(
                                         "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                                        color = Color(0xFF33291F),
+                                        color = readingInk,
                                         fontSize = (19f + readingFontScale * 7f).sp,
                                         lineHeight = (36f + readingFontScale * 10f).sp,
                                         textAlign = TextAlign.Center,
@@ -491,7 +504,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                                     verses.joinToString("  ") { verse ->
                                         verse.third + "  ﴿" + verse.second + "﴾"
                                     },
-                                    color = Color(0xFF33291F),
+                                    color = readingInk,
                                     fontSize = (19f + readingFontScale * 7f).sp,
                                     lineHeight = (36f + readingFontScale * 10f).sp,
                                     textAlign = TextAlign.Justify,
