@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.chrono.HijrahDate
+import java.time.temporal.ChronoField
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -115,7 +116,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
     val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
     val hijriDate = HijrahDate.from(now.toLocalDate())
     val hijriMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
-    val hijriText = "${hijriDate.dayOfMonth} ${hijriMonths[hijriDate.monthValue - 1]} ${hijriDate.year}"
+    val hijriText = "${hijriDate.get(ChronoField.DAY_OF_MONTH)} ${hijriMonths[hijriDate.get(ChronoField.MONTH_OF_YEAR) - 1]} ${hijriDate.get(ChronoField.YEAR)}"
 
     PageColumn(modifier) {
         Row(
