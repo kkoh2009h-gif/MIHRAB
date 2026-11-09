@@ -328,13 +328,53 @@ private fun AdhkarScreen(modifier: Modifier = Modifier) {
                 Text("المصدر: صحيح مسلم، حديث 597.", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("أذكار الصباح والمساء", color = Navy, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Text("قيد الإضافة بعد مراجعة النصوص والأسانيد والمراجع؛ لن نعرض نصاً غير متحقق منه.", color = Ink.copy(alpha = .7f), fontSize = 13.sp)
-            }
-        }
+        Text("أذكار الصباح والمساء", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        DhikrCounterCard(prefs, "dhikr_morning_evening_1", "دعاء الصباح والمساء",
+            "اللهم بك أصبحنا، وبك أمسينا، وبك نحيا، وبك نموت، وإليك النشور.",
+            "اللهم بك أمسينا، وبك نحيا، وبك نموت، وإليك النشور.",
+            "سنن أبي داود 5068 — صححه الألباني", 1)
+        DhikrCounterCard(prefs, "dhikr_morning_evening_2", "باسم الله الذي لا يضر",
+            "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
+            "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
+            "سنن أبي داود 5088 — صححه الألباني", 3)
+        Text("الأعداد المذكورة هنا واردة في الحديث، والعدّاد يحفظ تقدمك على هذا الجهاز.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
         Text("العدّاد أداة مساعدة. الأعداد الواردة في الأذكار المأثورة مذكورة في مواضعها مع مصادرها.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun DhikrCounterCard(
+    prefs: android.content.SharedPreferences,
+    storageKey: String,
+    title: String,
+    morningText: String,
+    eveningText: String,
+    source: String,
+    target: Int
+) {
+    var isEvening by remember { mutableStateOf(false) }
+    var count by remember { mutableIntStateOf(prefs.getInt(storageKey, 0).coerceIn(0, target)) }
+    Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, color = Navy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !isEvening, onClick = { isEvening = false }, label = { Text("الصباح") })
+                FilterChip(selected = isEvening, onClick = { isEvening = true }, label = { Text("المساء") })
+            }
+            Text(if (isEvening) eveningText else morningText, color = Ink, fontSize = 19.sp, lineHeight = 32.sp)
+            Text(source, color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("$count / $target", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Button(onClick = {
+                    count = (count + 1).coerceAtMost(target)
+                    prefs.edit().putInt(storageKey, count).apply()
+                }, enabled = count < target, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                    Text(if (count >= target) "اكتمل" else "تم الذكر")
+                }
+            }
+            LinearProgressIndicator(progress = { count.toFloat() / target.toFloat() }, modifier = Modifier.fillMaxWidth(), color = Gold)
+            TextButton(onClick = { count = 0; prefs.edit().putInt(storageKey, 0).apply() }) { Text("إعادة العداد") }
+        }
     }
 }
 
