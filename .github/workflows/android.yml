@@ -33,7 +33,7 @@ jobs:
           from pathlib import Path
           p = Path("app/src/main/assets/quran-uthmani.txt")
           data = p.read_bytes()
-          git_blob_sha = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\\0" + data).hexdigest()
+          git_blob_sha = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\x00" + data).hexdigest()
           expected = "f2f03c415ea50f8493d2058ec67a90257333abe3"
           if git_blob_sha != expected:
               raise SystemExit(f"Quran source integrity check failed: {git_blob_sha}")
