@@ -114,7 +114,8 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
     val time = now.format(DateTimeFormatter.ofPattern("hh:mm:ss a", Locale("ar")))
     val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
     val hijriDate = HijrahDate.from(now.toLocalDate())
-    val hijriText = hijriDate.toString()
+    val hijriMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
+    val hijriText = "${hijriDate.dayOfMonth} ${hijriMonths[hijriDate.monthValue - 1]} ${hijriDate.year}"
 
     PageColumn(modifier) {
         Row(
