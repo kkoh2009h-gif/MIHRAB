@@ -324,8 +324,30 @@ private fun AdhkarScreen(modifier: Modifier = Modifier) {
             "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
             "بسم الله الذي لا يضر مع اسمه شيء في الأرض ولا في السماء وهو السميع العليم.",
             "سنن أبي داود 5088 — صححه الألباني", 3)
+        Text("أذكار النوم والاستيقاظ", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        DhikrTextCard(
+            title = "عند النوم",
+            phrase = "باسمك اللهم أموت وأحيا",
+            source = "صحيح البخاري، حديث 6324"
+        )
+        DhikrTextCard(
+            title = "عند الاستيقاظ",
+            phrase = "الحمد لله الذي أحيانا بعدما أماتنا وإليه النشور",
+            source = "صحيح البخاري، حديث 6312"
+        )
         Text("الأعداد المذكورة هنا واردة في الحديث، والعدّاد يحفظ تقدمك على هذا الجهاز.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
         Text("العدّاد أداة مساعدة. الأعداد الواردة في الأذكار المأثورة مذكورة في مواضعها مع مصادرها.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun DhikrTextCard(title: String, phrase: String, source: String) {
+    Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Text(title, color = Navy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(phrase, color = Ink, fontSize = 20.sp, lineHeight = 32.sp)
+            Text(source, color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
