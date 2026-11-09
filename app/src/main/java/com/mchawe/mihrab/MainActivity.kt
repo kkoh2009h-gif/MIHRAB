@@ -473,7 +473,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                             Text("اسحب أفقياً للتنقل بين الصفحات", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
                         }
                     }
-                    Text("توزيع الآيات مرتبط بفهرس صفحات مصحف المدينة ذي 604 صفحات.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
+                    Text("فهرس الصفحات: Mushaf-Learning/quran-text — CC BY-SA 4.0.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
                 } else {
                     Text("تعذّر تحديد آيات هذه الصفحة من الفهرس.", color = MaterialTheme.colorScheme.error)
                 }
