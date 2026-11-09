@@ -430,30 +430,6 @@ private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, on
                 }
             }
         }
-        Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("حجم خط القراءة", color = Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    Text(if (readingFontScale < 0.34f) "صغير" else if (readingFontScale > 0.67f) "كبير" else "متوسط", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
-                }
-                Slider(
-                    value = readingFontScale,
-                    onValueChange = { readingFontScale = it },
-                    onValueChangeFinished = { prefs.edit().putFloat("quran_font_scale", readingFontScale).apply() },
-                    valueRange = 0f..1f
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("الوضع الليلي للقراءة", color = Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                        Text("خلفية داكنة مريحة مع حفظ اختيارك", color = Ink.copy(alpha = .6f), fontSize = 11.sp)
-                    }
-                    Switch(checked = nightReading, onCheckedChange = {
-                        nightReading = it
-                        prefs.edit().putBoolean("quran_night_reading", it).apply()
-                    })
-                }
-            }
-        }
         when {
             loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp))
