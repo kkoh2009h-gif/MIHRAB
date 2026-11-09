@@ -148,26 +148,43 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PrayerScreen(modifier: Modifier = Modifier) {
-    val prayers = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
+    val cities = listOf("كركوك", "بغداد", "الموصل", "أربيل", "السليمانية", "دهوك", "البصرة", "النجف", "كربلاء", "الأنبار")
+    var city by remember { mutableStateOf("كركوك") }
+    var expanded by remember { mutableStateOf(false) }
     PageColumn(modifier) {
         PageHeader("مواقيت الصلاة", "المواقيت الخاصة بمدينتك")
         Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(18.dp)) {
-                Text("الموقع", color = Gold, fontWeight = FontWeight.Bold)
-                Text("لم يتم تحديد المدينة بعد", color = Color.White, fontSize = 17.sp)
-                Text("سيُطلب إذن الموقع عند تفعيل خدمة تحديد المدينة، ويمكنك اختيارها يدوياً.", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("المدينة المحددة", color = Gold, fontWeight = FontWeight.Bold)
+                Text(city, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Box {
+                    OutlinedButton(onClick = { expanded = true }) {
+                        Icon(Icons.Default.LocationCity, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("اختيار المدينة")
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        cities.forEach { item ->
+                            DropdownMenuItem(text = { Text(item) }, onClick = {
+                                city = item
+                                expanded = false
+                            })
+                        }
+                    }
+                }
+                Text("سيتم ربط المدينة بالموقع الجغرافي ومصدر المواقيت الرسمي في الخطوة التالية.", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
             }
         }
         Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        prayers.forEach { prayer ->
+        listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء").forEach { prayer ->
             Surface(color = Color.White, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(prayer, color = Navy, fontWeight = FontWeight.SemiBold)
-                    Text("بانتظار ربط المصدر", color = Ink.copy(alpha = .55f), fontSize = 12.sp)
+                    Text("بانتظار البيانات الموثقة", color = Ink.copy(alpha = .55f), fontSize = 12.sp)
                 }
             }
         }
-        Text("لن نعرض أوقاتاً تقديرية على أنها أوقات رسمية.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+        Text("لن نعرض أوقاتاً تقديرية على أنها مواقيت رسمية.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
     }
 }
 
