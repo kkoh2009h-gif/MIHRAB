@@ -1,11 +1,18 @@
 package com.mchawe.mihrab
 
 import android.os.Bundle
+import android.app.Activity
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +59,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun MihrabApp() {
     var selected by remember { mutableIntStateOf(0) }
+    var quranFullscreen by remember { mutableStateOf(false) }
     val labels = listOf("الرئيسية", "الصلاة", "القرآن", "الأذكار", "المزيد")
     val icons = listOf(
         Icons.Default.Home,
@@ -67,7 +75,7 @@ private fun MihrabApp() {
         Scaffold(
             containerColor = Cream,
             bottomBar = {
-                NavigationBar(containerColor = Color.White) {
+                if (!quranFullscreen) NavigationBar(containerColor = Color.White) {
                     labels.forEachIndexed { index, label ->
                         NavigationBarItem(
                             selected = selected == index,
@@ -82,7 +90,7 @@ private fun MihrabApp() {
             when (selected) {
                 0 -> HomeScreen(Modifier.padding(padding))
                 1 -> PrayerScreen(Modifier.padding(padding))
-                2 -> QuranScreen(Modifier.padding(padding))
+                2 -> QuranScreen(modifier = if (quranFullscreen) Modifier else Modifier.padding(padding), isFullscreen = quranFullscreen, onFullscreenChange = { quranFullscreen = it })
                 3 -> AdhkarScreen(Modifier.padding(padding))
                 else -> MoreScreen(Modifier.padding(padding))
             }
@@ -287,8 +295,20 @@ private val arabicSurahNames = listOf(
 )
 
 @Composable
-private fun QuranScreen(modifier: Modifier = Modifier) {
+private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, onFullscreenChange: (Boolean) -> Unit) {
     val context = LocalContext.current
+    val activity = context as? Activity
+    DisposableEffect(isFullscreen, activity) {
+        val window = activity?.window
+        val controller = window?.let { WindowInsetsControllerCompat(it, it.decorView) }
+        if (isFullscreen) {
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
+    }
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var targetDays by remember { mutableIntStateOf(prefs.getInt("khatmah_days", 30)) }
     var completedPages by remember { mutableIntStateOf(prefs.getInt("khatmah_pages", 0).coerceIn(0, 604)) }
@@ -372,7 +392,16 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     }
 
     PageColumn(modifier) {
-        PageHeader("القرآن الكريم", "الرسم العثماني — رواية حفص")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("القرآن الكريم", color = Navy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("مصحف المدينة المنورة — رواية حفص", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
+            }
+            IconButton(onClick = { onFullscreenChange(!isFullscreen) }) {
+                Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                    contentDescription = if (isFullscreen) "إنهاء ملء الشاشة" else "ملء الشاشة", tint = Navy)
+            }
+        }
         Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("نص المصحف من مشروع تنزيل Tanzil، الإصدار 1.1، دون تغيير في النص. يُضمّن داخل التطبيق ليعمل دون إنترنت.", color = Ink.copy(alpha = .75f), fontSize = 13.sp, lineHeight = 21.sp)
@@ -455,67 +484,45 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                             Text("الصفحة $currentPage من 604", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                         }
                     }
+                    val mushafBitmap = remember(currentPage) {
+                        runCatching {
+                            context.assets.open("mushaf_pages/$currentPage.png").use { BitmapFactory.decodeStream(it) }
+                        }.getOrNull()
+                    }
                     Surface(
                         color = readingPaper,
                         shape = RoundedCornerShape(5.dp),
                         border = BorderStroke(1.dp, Gold.copy(alpha = if (nightReading) .9f else .75f)),
-                        modifier = Modifier.fillMaxWidth()
-                            .pointerInput(currentPage) {
-                                var drag = 0f
-                                detectHorizontalDragGestures(
-                                    onHorizontalDrag = { _, amount -> drag += amount },
-                                    onDragEnd = {
-                                        if (drag < -45f && currentPage < 604) {
-                                            currentPage += 1
-                                            prefs.edit().putInt("quran_current_page", currentPage).apply()
-                                        } else if (drag > 45f && currentPage > 1) {
-                                            currentPage -= 1
-                                            prefs.edit().putInt("quran_current_page", currentPage).apply()
-                                        }
-                                        drag = 0f
+                        modifier = Modifier.fillMaxWidth().pointerInput(currentPage) {
+                            var drag = 0f
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { _, amount -> drag += amount },
+                                onDragEnd = {
+                                    if (drag < -45f && currentPage < 604) {
+                                        currentPage += 1
+                                        prefs.edit().putInt("quran_current_page", currentPage).apply()
+                                    } else if (drag > 45f && currentPage > 1) {
+                                        currentPage -= 1
+                                        prefs.edit().putInt("quran_current_page", currentPage).apply()
                                     }
-                                )
-                            }
-                    ) {
-                        Column(
-                            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("۞  الْمُصْحَفُ الشَّرِيف  ۞", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Divider(color = Gold.copy(alpha = .65f))
-                            pageAyahs.groupBy { it.first }.forEach { (surahNumber, verses) ->
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    "سُورَةُ " + arabicSurahNames[surahNumber - 1],
-                                    color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold
-                                )
-                                if (verses.first().second == 1 && surahNumber != 1 && surahNumber != 9) {
-                                    Text(
-                                        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
-                                        color = readingInk,
-                                        fontSize = (19f + readingFontScale * 7f).sp,
-                                        lineHeight = (36f + readingFontScale * 10f).sp,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                                    drag = 0f
                                 }
-                                Text(
-                                    verses.joinToString("  ") { verse ->
-                                        verse.third + "  ﴿" + verse.second + "﴾"
-                                    },
-                                    color = readingInk,
-                                    fontSize = (19f + readingFontScale * 7f).sp,
-                                    lineHeight = (36f + readingFontScale * 10f).sp,
-                                    textAlign = TextAlign.Justify,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                            Divider(color = Gold.copy(alpha = .65f))
-                            Text("—  $currentPage  —", color = Navy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text("اسحب أفقياً للتنقل بين الصفحات", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
+                            )
+                        }
+                    ) {
+                        if (mushafBitmap != null) {
+                            Image(
+                                bitmap = mushafBitmap.asImageBitmap(),
+                                contentDescription = "صفحة المصحف الشريف رقم $currentPage",
+                                contentScale = ContentScale.FillWidth,
+                                modifier = Modifier.fillMaxWidth().padding(5.dp)
+                            )
+                        } else {
+                            Text("تعذّر تحميل صورة الصفحة. تأكد من اكتمال ملفات المصحف داخل التطبيق.",
+                                color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(24.dp))
                         }
                     }
+                    Text("صور صفحات المصحف: Quran Images — MIT؛ الأصل من quran.com-images.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
                     Text("فهرس الصفحات: Mushaf-Learning/quran-text — CC BY-SA 4.0.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
                 } else {
                     Text("تعذّر تحديد آيات هذه الصفحة من الفهرس.", color = MaterialTheme.colorScheme.error)
