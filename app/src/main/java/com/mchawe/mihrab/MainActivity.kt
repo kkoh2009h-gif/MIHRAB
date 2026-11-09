@@ -6,8 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -39,7 +39,13 @@ class MainActivity : ComponentActivity() {
 private fun MihrabApp() {
     var selected by remember { mutableIntStateOf(0) }
     val labels = listOf("الرئيسية", "الصلاة", "القرآن", "الأذكار", "المزيد")
-    val icons = listOf(Icons.Default.Home, Icons.Default.AccessTime, Icons.Default.MenuBook, Icons.Default.Favorite, Icons.Default.MoreHoriz)
+    val icons = listOf(
+        Icons.Default.Home,
+        Icons.Default.AccessTime,
+        Icons.Default.MenuBook,
+        Icons.Default.Favorite,
+        Icons.Default.MoreHoriz
+    )
 
     MaterialTheme(colorScheme = lightColorScheme(
         primary = Navy, secondary = Gold, background = Cream, surface = Color.White
@@ -61,9 +67,35 @@ private fun MihrabApp() {
         ) { padding ->
             when (selected) {
                 0 -> HomeScreen(Modifier.padding(padding))
-                else -> PlaceholderScreen(labels[selected], Modifier.padding(padding))
+                1 -> PrayerScreen(Modifier.padding(padding))
+                2 -> QuranScreen(Modifier.padding(padding))
+                3 -> AdhkarScreen(Modifier.padding(padding))
+                else -> MoreScreen(Modifier.padding(padding))
             }
         }
+    }
+}
+
+@Composable
+private fun PageColumn(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier.fillMaxSize()
+            .background(Cream)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        content = content
+    )
+}
+
+@Composable
+private fun PageHeader(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, color = Navy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = Ink.copy(alpha = .65f), fontSize = 13.sp)
     }
 }
 
@@ -79,11 +111,12 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
     val time = now.format(DateTimeFormatter.ofPattern("hh:mm:ss a", Locale("ar")))
     val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
 
-    Column(
-        modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    PageColumn(modifier) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column {
                 Text("مِحراب", color = Navy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Text("رفيق يومك وعبادتك", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
@@ -99,14 +132,84 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
                 Text(date, color = Color.White.copy(alpha = .8f), fontSize = 14.sp)
                 Spacer(Modifier.height(16.dp))
                 Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
-                Text("سيتم ربط المواقيت ببيانات المصدر المعتمد حسب مدينتك", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
+                Text(
+                    "سيتم عرض المواقيت بعد ربط مصدر البيانات والتحقق منها لمدينتك",
+                    color = Color.White.copy(alpha = .8f), fontSize = 12.sp
+                )
             }
         }
         Text("مساحتك اليومية", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         FeatureTile("وردك اليومي", "تابع قراءتك وختمتك", Icons.Default.MenuBook)
         FeatureTile("أذكار اليوم", "أذكار الصباح والمساء والأدعية", Icons.Default.Favorite)
         FeatureTile("التقويم الهجري", "تابع التاريخ والمناسبات الثابتة", Icons.Default.CalendarMonth)
-        Text("الإصدار التأسيسي 0.1.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+        Text("مِحراب • الإصدار 0.2.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun PrayerScreen(modifier: Modifier = Modifier) {
+    val prayers = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
+    PageColumn(modifier) {
+        PageHeader("مواقيت الصلاة", "المواقيت الخاصة بمدينتك")
+        Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp)) {
+                Text("الموقع", color = Gold, fontWeight = FontWeight.Bold)
+                Text("لم يتم تحديد المدينة بعد", color = Color.White, fontSize = 17.sp)
+                Text("سيُطلب إذن الموقع عند تفعيل خدمة تحديد المدينة، ويمكنك اختيارها يدوياً.", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
+            }
+        }
+        Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        prayers.forEach { prayer ->
+            Surface(color = Color.White, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(prayer, color = Navy, fontWeight = FontWeight.SemiBold)
+                    Text("بانتظار ربط المصدر", color = Ink.copy(alpha = .55f), fontSize = 12.sp)
+                }
+            }
+        }
+        Text("لن نعرض أوقاتاً تقديرية على أنها أوقات رسمية.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun QuranScreen(modifier: Modifier = Modifier) {
+    PageColumn(modifier) {
+        PageHeader("القرآن الكريم", "مصحف بصفحات واضحة وقراءة مريحة")
+        Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Default.MenuBook, null, tint = Gold, modifier = Modifier.size(42.dp))
+                Text("المصحف الشريف", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "نعمل على إضافة نص قرآني موثّق بالرسم العثماني وتخطيط صفحات مطابق لمصحف معتمد.",
+                    color = Ink.copy(alpha = .7f), fontSize = 13.sp
+                )
+                Text("لن نستخدم نصوصاً تجريبية أو آيات غير مدققة.", color = Navy, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        FeatureTile("علامات القراءة", "حفظ موضع القراءة والعلامات المرجعية", Icons.Default.Bookmark)
+        FeatureTile("ختمة القرآن", "خطط ختمة 7 أو 15 أو 30 يوماً", Icons.Default.CheckCircle)
+    }
+}
+
+@Composable
+private fun AdhkarScreen(modifier: Modifier = Modifier) {
+    PageColumn(modifier) {
+        PageHeader("الأذكار والأدعية", "أذكار ثابتة مع مصادرها")
+        FeatureTile("أذكار الصباح", "نصوص موثقة وعدّاد للتكرار", Icons.Default.WbSunny)
+        FeatureTile("أذكار المساء", "اقرأ أذكار المساء واحفظ تقدمك", Icons.Default.DarkMode)
+        FeatureTile("أذكار بعد الصلاة", "أذكار صحيحة مع المراجع", Icons.Default.Favorite)
+        Text("سيتم نشر الأذكار بعد مراجعة النصوص والمراجع، دون نسبة نص غير موثّق.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun MoreScreen(modifier: Modifier = Modifier) {
+    PageColumn(modifier) {
+        PageHeader("المزيد", "إعدادات وأدوات مِحراب")
+        FeatureTile("التقويم الهجري", "التاريخ الهجري والمناسبات الثابتة", Icons.Default.CalendarMonth)
+        FeatureTile("التنبيهات والأذان", "إعدادات التنبيه والصوت لكل صلاة", Icons.Default.Notifications)
+        FeatureTile("الإعدادات", "المظهر واللغة والموقع وطريقة عرض الوقت", Icons.Default.Settings)
+        Text("مِحراب — تطبيق عربي يحترم خصوصيتك ويعمل دون خدمات سحابية مدفوعة.", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
     }
 }
 
@@ -122,16 +225,6 @@ private fun FeatureTile(title: String, subtitle: String, icon: androidx.compose.
                 Text(title, color = Navy, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                 Text(subtitle, color = Ink.copy(alpha = .6f), fontSize = 12.sp)
             }
-        }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(title: String, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().background(Cream), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, color = Navy, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            Text("هذه الصفحة ضمن مراحل التطوير القادمة", color = Ink.copy(alpha = .65f))
         }
     }
 }
