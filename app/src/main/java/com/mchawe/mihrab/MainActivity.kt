@@ -203,6 +203,8 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var targetDays by remember { mutableIntStateOf(prefs.getInt("khatmah_days", 30)) }
     var completedPages by remember { mutableIntStateOf(prefs.getInt("khatmah_pages", 0).coerceIn(0, 604)) }
+    var currentPage by remember { mutableIntStateOf(prefs.getInt("quran_current_page", 1).coerceIn(1, 604)) }
+    var savedPage by remember { mutableIntStateOf(prefs.getInt("quran_saved_page", 1).coerceIn(1, 604)) }
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
     PageColumn(modifier) {
@@ -234,7 +236,51 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                 if (completedPages == 604) Text("ما شاء الله، أكملت 604 صفحة. تقبّل الله منك.", color = Navy, fontWeight = FontWeight.Bold)
             }
         }
-        FeatureTile("علامات القراءة", "ميزة حفظ موضع المصحف قيد التطوير", Icons.Default.Bookmark)
+        Text("موضع القراءة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("الصفحة الحالية", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
+                Text("$currentPage / 604", color = Navy, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                LinearProgressIndicator(
+                    progress = { currentPage / 604f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Gold
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    OutlinedButton(
+                        onClick = {
+                            currentPage = (currentPage - 1).coerceAtLeast(1)
+                            prefs.edit().putInt("quran_current_page", currentPage).apply()
+                        },
+                        enabled = currentPage > 1
+                    ) { Text("الصفحة السابقة") }
+                    Button(
+                        onClick = {
+                            currentPage = (currentPage + 1).coerceAtMost(604)
+                            prefs.edit().putInt("quran_current_page", currentPage).apply()
+                        },
+                        enabled = currentPage < 604,
+                        colors = ButtonDefaults.buttonColors(containerColor = Navy)
+                    ) { Text("الصفحة التالية") }
+                }
+                Divider(color = Cream)
+                Text("آخر موضع محفوظ: صفحة $savedPage", color = Navy, fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            savedPage = currentPage
+                            prefs.edit().putInt("quran_saved_page", savedPage).apply()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Navy)
+                    ) { Icon(Icons.Default.Bookmark, null); Spacer(Modifier.width(6.dp)); Text("حفظ الموضع") }
+                    OutlinedButton(onClick = {
+                        currentPage = savedPage
+                        prefs.edit().putInt("quran_current_page", currentPage).apply()
+                    }) { Text("استرجاع المحفوظ") }
+                }
+                Text("يُحفظ موضعك على الجهاز حتى بعد إغلاق التطبيق.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+            }
+        }
     }
 }
 @Composable
