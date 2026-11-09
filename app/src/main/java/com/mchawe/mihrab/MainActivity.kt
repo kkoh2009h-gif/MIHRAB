@@ -392,6 +392,7 @@ private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, on
     }
 
     PageColumn(modifier) {
+        if (!isFullscreen) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
                 Text("القرآن الكريم", color = Navy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
@@ -430,6 +431,7 @@ private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, on
                 }
             }
         }
+        }
         when {
             loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp))
@@ -450,14 +452,441 @@ private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, on
                 }.let { if (it < 0) allAyahs.size else it }
                 val pageAyahs = if (startIndex >= 0 && endIndex >= startIndex) allAyahs.subList(startIndex, endIndex) else emptyList()
                 if (pageAyahs.isNotEmpty()) {
+                    if (isFullscreen) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("الصفحة $currentPage / 604", color = Navy, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { onFullscreenChange(false) }) {
+                                Icon(Icons.Default.FullscreenExit, contentDescription = "إنهاء ملء الشاشة", tint = Navy)
+                            }
+                        }
+                    } else {
+                        Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("مُصْحَفُ الْمَدِينَةِ الْمُنَوَّرَة", color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                Text("الصفحة $currentPage من 604", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    val mushafBitmap = remember(currentPage) {
+                        runCatching {
+                            context.assets.open("mushaf_pages/$currentPage.png").use { BitmapFactory.decodeStream(it) }
+                        }.getOrNull()
+                    }
                     Surface(
-                        color = Navy,
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        color = readingPaper,
+                        shape = RoundedCornerShape(5.dp),
+                        border = BorderStroke(1.dp, Gold.copy(alpha = if (nightReading) .9f else .75f)),
+                        modifier = Modifier.fillMaxWidth().pointerInput(currentPage) {
+                            var drag = 0f
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { _, amount -> drag += amount },
+                                onDragEnd = {
+                                    if (drag < -45f && currentPage < 604) {
+                                        currentPage += 1
+                                        prefs.edit().putInt("quran_current_page", currentPage).apply()
+                                    } else if (drag > 45f && currentPage > 1) {
+                                        currentPage -= 1
+                                        prefs.edit().putInt("quran_current_page", currentPage).apply()
+                                    }
+                                    drag = 0f
+                                }
+                            )
+                        }
                     ) {
-                        Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("مُصْحَفُ الْمَدِينَةِ الْمُنَوَّرَة", color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Text("الصفحة $currentPage من 604", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                        if (mushafBitmap != null) {
+                            Image(
+                                bitmap = mushafBitmap.asImageBitmap(),
+                                contentDescription = "صفحة المصحف الشريف رقم $currentPage",
+                                contentScale = ContentScale.FillWidth,
+                                modifier = Modifier.fillMaxWidth().padding(5.dp)
+                            )
+                        } else {
+                            Text("تعذّر تحميل صورة الصفحة. تأكد من اكتمال ملفات المصحف داخل التطبيق.",
+                                color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(24.dp))
+                        }
+                    }
+                    Text("صور صفحات المصحف: Quran Images — MIT؛ الأصل من quran.com-images.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
+                    Text("فهرس الصفحات: Mushaf-Learning/quran-text — CC BY-SA 4.0.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
+                } else {
+                    Text("تعذّر تحديد آيات هذه الصفحة من الفهرس.", color = MaterialTheme.colorScheme.error)
+                }
+
+                }
+            }
+
+                if (!isFullscreen) {
+        }
+        }
+    }
+}
+
+@Composable
+private fun PageColumn(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier.fillMaxSize()
+            .background(Cream)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        content = content
+    )
+}
+
+@Composable
+private fun PageHeader(title: String, subtitle: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, color = Navy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text(subtitle, color = Ink.copy(alpha = .65f), fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun HomeScreen(modifier: Modifier = Modifier) {
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = LocalDateTime.now()
+            delay(1000)
+        }
+    }
+    val time = now.format(DateTimeFormatter.ofPattern("hh:mm:ss a", Locale("ar")))
+    val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
+    val hijriDate = HijrahDate.from(now.toLocalDate())
+    val hijriMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
+    val hijriText = "${hijriDate.get(ChronoField.DAY_OF_MONTH)} ${hijriMonths[hijriDate.get(ChronoField.MONTH_OF_YEAR) - 1]} ${hijriDate.get(ChronoField.YEAR)}"
+
+    PageColumn(modifier) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("مِحراب", color = Navy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text("رفيق يومك وعبادتك", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
+            }
+            Surface(color = Navy, shape = RoundedCornerShape(16.dp)) {
+                Icon(Icons.Default.AutoAwesome, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
+            }
+        }
+        Surface(color = Navy, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("الساعة الآن", color = Gold.copy(alpha = .9f), fontSize = 13.sp)
+                Text(time, color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Light)
+                Text(date, color = Color.White.copy(alpha = .8f), fontSize = 14.sp)
+                Text("التاريخ الهجري: $hijriText هـ", color = Gold, fontSize = 13.sp)
+                Spacer(Modifier.height(16.dp))
+                Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "سيتم عرض المواقيت بعد ربط مصدر البيانات والتحقق منها لمدينتك",
+                    color = Color.White.copy(alpha = .8f), fontSize = 12.sp
+                )
+            }
+        }
+        Text("مساحتك اليومية", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        FeatureTile("وردك اليومي", "تابع قراءتك وختمتك", Icons.Default.MenuBook)
+        FeatureTile("أذكار اليوم", "أذكار الصباح والمساء والأدعية", Icons.Default.Favorite)
+        FeatureTile("التقويم الهجري", "تابع التاريخ والمناسبات الثابتة", Icons.Default.CalendarMonth)
+        Text("مِحراب • الإصدار 1.0.5", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun PrayerScreen(modifier: Modifier = Modifier) {
+    val cities = listOf("كركوك", "بغداد", "الموصل", "أربيل", "السليمانية", "دهوك", "البصرة", "النجف", "كربلاء", "الأنبار")
+    val prayerNames = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var city by remember { mutableStateOf(prefs.getString("city", "كركوك") ?: "كركوك") }
+    val dateKey = java.time.LocalDate.now().toString()
+    val storageKey = "official_manual_${city}_${dateKey}"
+    var times by remember(city, dateKey) {
+        mutableStateOf(prayerNames.mapIndexed { index, _ -> prefs.getString("${storageKey}_${index}", "") ?: "" })
+    }
+    var expanded by remember { mutableStateOf(false) }
+    var showEntry by remember { mutableStateOf(false) }
+    var editTimes by remember { mutableStateOf(times) }
+    val validEntries = editTimes.all { it.matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")) }
+
+    if (showEntry) {
+        AlertDialog(
+            onDismissRequest = { showEntry = false },
+            title = { Text("إدخال مواقيت اليوم") },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("انقل الأوقات كما تظهر في جدول الديوان الرسمي لمدينة $city بتاريخ $dateKey. لا تدخل أوقاتاً تقديرية.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
+                    prayerNames.forEachIndexed { index, prayer ->
+                        OutlinedTextField(
+                            value = editTimes[index],
+                            onValueChange = { value -> editTimes = editTimes.toMutableList().also { it[index] = value } },
+                            label = { Text(prayer) },
+                            placeholder = { Text("مثال: 05:10") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            isError = editTimes[index].isNotBlank() && !editTimes[index].matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Text("اكتب الوقت بصيغة 05:10 أو 17:45. يجب إدخال الأوقات الستة بصيغة صحيحة.", color = if (validEntries) Ink.copy(alpha = .6f) else MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = validEntries, onClick = {
+                    times = editTimes.map { it.trim().padStart(5, '0') }
+                    val editor = prefs.edit()
+                    times.forEachIndexed { index, value -> editor.putString("${storageKey}_${index}", value.trim()) }
+                    editor.apply()
+                    showEntry = false
+                }) { Text("حفظ") }
+            },
+            dismissButton = { TextButton(onClick = { showEntry = false }) { Text("إلغاء") } }
+        )
+    }
+
+    PageColumn(modifier) {
+        PageHeader("مواقيت الصلاة", "مواقيت اليوم حسب المدينة المحددة")
+        Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("المدينة المحددة", color = Gold, fontWeight = FontWeight.Bold)
+                Text(city, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Box {
+                    OutlinedButton(onClick = { expanded = true }) {
+                        Icon(Icons.Default.LocationCity, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("اختيار المدينة")
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        cities.forEach { item ->
+                            DropdownMenuItem(text = { Text(item) }, onClick = {
+                                city = item
+                                prefs.edit().putString("city", item).apply()
+                                expanded = false
+                            })
+                        }
+                    }
+                }
+                Text("المصدر الرسمي للمراجعة: ديوان الوقف السني العراقي.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                OutlinedButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/")))
+                }) {
+                    Icon(Icons.Default.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("فتح موقع الديوان")
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(dateKey, color = Ink.copy(alpha = .6f), fontSize = 11.sp)
+            }
+            Button(onClick = { editTimes = times; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                Icon(Icons.Default.Edit, null)
+                Spacer(Modifier.width(5.dp))
+                Text("إدخال الأوقات")
+            }
+        }
+        prayerNames.forEachIndexed { index, prayer ->
+            Surface(color = Color.White, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(prayer, color = Navy, fontWeight = FontWeight.SemiBold)
+                    Text(times[index].ifBlank { "غير مدخل" }, color = if (times[index].isBlank()) Ink.copy(alpha = .45f) else Navy, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+        Text(
+            if (times.any { it.isNotBlank() }) "هذه الأوقات أدخلها المستخدم يدوياً؛ راجعها مع جدول الديوان قبل الاعتماد عليها. تُحفظ لهذا اليوم ولهذه المدينة فقط."
+            else "لم تُدخل مواقيت هذا اليوم بعد. لا يعرض التطبيق أوقاتاً تقديرية أو من مصدر غير رسمي على أنها مواقيت الديوان.",
+            color = Ink.copy(alpha = .7f), fontSize = 12.sp
+        )
+    }
+}
+
+
+private data class QuranAyah(val number: Int, val text: String)
+private data class QuranSurah(val number: Int, val ayat: List<QuranAyah>)
+
+private val arabicSurahNames = listOf(
+"الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق","الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس","التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد","الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"
+)
+
+@Composable
+private fun QuranScreen(modifier: Modifier = Modifier, isFullscreen: Boolean, onFullscreenChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    DisposableEffect(isFullscreen, activity) {
+        val window = activity?.window
+        val controller = window?.let { WindowInsetsControllerCompat(it, it.decorView) }
+        if (isFullscreen) {
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
+    }
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var targetDays by remember { mutableIntStateOf(prefs.getInt("khatmah_days", 30)) }
+    var completedPages by remember { mutableIntStateOf(prefs.getInt("khatmah_pages", 0).coerceIn(0, 604)) }
+    var currentPage by remember { mutableIntStateOf(prefs.getInt("quran_current_page", 1).coerceIn(1, 604)) }
+    var savedPage by remember { mutableIntStateOf(prefs.getInt("quran_saved_page", 1).coerceIn(1, 604)) }
+    var showJumpDialog by remember { mutableStateOf(false) }
+    var jumpPageText by remember { mutableStateOf(currentPage.toString()) }
+    var surahIndex by remember { mutableIntStateOf(prefs.getInt("quran_surah", 1).coerceIn(1, 114)) }
+    var surahs by remember { mutableStateOf<List<QuranSurah>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf(false) }
+    var surahMenu by remember { mutableStateOf(false) }
+    var readingFontScale by remember { mutableFloatStateOf(prefs.getFloat("quran_font_scale", 0.5f).coerceIn(0f, 1f)) }
+    var nightReading by remember { mutableStateOf(prefs.getBoolean("quran_night_reading", false)) }
+    val readingPaper = if (nightReading) Color(0xFF172333) else Color(0xFFFFFDF5)
+    val readingInk = if (nightReading) Color(0xFFE8DFC9) else Color(0xFF33291F)
+    val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
+    val progress = completedPages / 604f
+
+    LaunchedEffect(currentPage) {
+        val pageSurah = quranPageStarts[currentPage - 1].first
+        if (surahIndex != pageSurah) {
+            surahIndex = pageSurah
+            prefs.edit().putInt("quran_surah", pageSurah).apply()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            val loaded = withContext(Dispatchers.IO) {
+                context.assets.open("quran-uthmani.txt").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.mapNotNull { line ->
+                        val parts = line.split('|', limit = 3)
+                        if (parts.size != 3) null else {
+                            val s = parts[0].toIntOrNull()
+                            val a = parts[1].toIntOrNull()
+                            if (s == null || a == null || s !in 1..114 || a < 1 || parts[2].isBlank()) null
+                            else Triple(s, a, parts[2])
+                        }
+                    }.toList().groupBy { it.first }.map { (number, verses) ->
+                        QuranSurah(number, verses.map { QuranAyah(it.second, it.third) }.sortedBy { it.number })
+                    }.sortedBy { it.number }
+                }
+            }
+            surahs = loaded
+            loadError = loaded.size != 114 || loaded.sumOf { it.ayat.size } != 6236
+        } catch (_: Exception) {
+            loadError = true
+        } finally {
+            loading = false
+        }
+    }
+
+    if (showJumpDialog) {
+        val requestedPage = jumpPageText.toIntOrNull()
+        AlertDialog(
+            onDismissRequest = { showJumpDialog = false },
+            title = { Text("الانتقال إلى صفحة") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = jumpPageText,
+                        onValueChange = { jumpPageText = it.filter(Char::isDigit).take(3) },
+                        label = { Text("رقم الصفحة") },
+                        placeholder = { Text("1 - 604") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = requestedPage == null || requestedPage !in 1..604
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = requestedPage != null && requestedPage in 1..604, onClick = {
+                    currentPage = requestedPage!!
+                    prefs.edit().putInt("quran_current_page", currentPage).apply()
+                    showJumpDialog = false
+                }) { Text("انتقال") }
+            },
+            dismissButton = { TextButton(onClick = { showJumpDialog = false }) { Text("إلغاء") } }
+        )
+    }
+
+    PageColumn(modifier) {
+        if (!isFullscreen) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("القرآن الكريم", color = Navy, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Text("مصحف المدينة المنورة — رواية حفص", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
+            }
+            IconButton(onClick = { onFullscreenChange(!isFullscreen) }) {
+                Icon(if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                    contentDescription = if (isFullscreen) "إنهاء ملء الشاشة" else "ملء الشاشة", tint = Navy)
+            }
+        }
+        Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("نص المصحف من مشروع تنزيل Tanzil، الإصدار 1.1، دون تغيير في النص. يُضمّن داخل التطبيق ليعمل دون إنترنت.", color = Ink.copy(alpha = .75f), fontSize = 13.sp, lineHeight = 21.sp)
+                TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://tanzil.net/"))) }) {
+                    Text("المصدر وشروط الاستخدام: Tanzil")
+                }
+            }
+        }
+        Text("اختر السورة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Box {
+            OutlinedButton(onClick = { surahMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(arabicSurahNames[surahIndex - 1] + " • السورة " + surahIndex)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+            DropdownMenu(expanded = surahMenu, onDismissRequest = { surahMenu = false }) {
+                arabicSurahNames.forEachIndexed { index, name ->
+                    DropdownMenuItem(text = { Text("${index + 1}. " + name) }, onClick = {
+                        surahIndex = index + 1
+                        val pageForSurah = quranPageStarts.indexOfLast { it.first < surahIndex || (it.first == surahIndex && it.second <= 1) }
+                            .coerceAtLeast(0) + 1
+                        currentPage = pageForSurah
+                        prefs.edit().putInt("quran_surah", surahIndex).putInt("quran_current_page", currentPage).apply()
+                        surahMenu = false
+                    })
+                }
+            }
+        }
+        }
+        when {
+            loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp))
+                Text("جارٍ تجهيز المصحف...", color = Ink.copy(alpha = .7f))
+            }
+            loadError -> Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Text("تعذّر التحقق من اكتمال ملف المصحف؛ أوقفنا عرض النص احتياطاً.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+            }
+            else -> {
+                val allAyahs = surahs.flatMap { surah ->
+                    surah.ayat.map { ayah -> Triple(surah.number, ayah.number, ayah.text) }
+                }
+                val pageStart = quranPageStarts[currentPage - 1]
+                val nextPageStart = quranPageStarts.getOrNull(currentPage)
+                val startIndex = allAyahs.indexOfFirst { it.first == pageStart.first && it.second == pageStart.second }
+                val endIndex = if (nextPageStart == null) allAyahs.size else allAyahs.indexOfFirst {
+                    it.first == nextPageStart.first && it.second == nextPageStart.second
+                }.let { if (it < 0) allAyahs.size else it }
+                val pageAyahs = if (startIndex >= 0 && endIndex >= startIndex) allAyahs.subList(startIndex, endIndex) else emptyList()
+                if (pageAyahs.isNotEmpty()) {
+                    if (isFullscreen) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("الصفحة $currentPage / 604", color = Navy, fontWeight = FontWeight.Bold)
+                            IconButton(onClick = { onFullscreenChange(false) }) {
+                                Icon(Icons.Default.FullscreenExit, contentDescription = "إنهاء ملء الشاشة", tint = Navy)
+                            }
+                        }
+                    } else {
+                        Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("مُصْحَفُ الْمَدِينَةِ الْمُنَوَّرَة", color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                Text("الصفحة $currentPage من 604", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                            }
                         }
                     }
                     val mushafBitmap = remember(currentPage) {
