@@ -1,12 +1,20 @@
 package com.mchawe.mihrab
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.os.Build
 import android.app.Activity
 import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -174,57 +182,117 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PrayerScreen(modifier: Modifier = Modifier) {
-    // Iraqi governorate centers; schedules are marked automatic only when verified city data exists.
-    val cities = listOf(
-        "بغداد", "البصرة", "نينوى - الموصل", "أربيل", "السليمانية", "دهوك",
-        "كركوك", "النجف", "كربلاء", "الأنبار - الرمادي", "بابل - الحلة",
-        "واسط - الكوت", "ذي قار - الناصرية", "ميسان - العمارة", "المثنى - السماوة",
-        "صلاح الدين - تكريت", "القادسية - الديوانية", "ديالى - بعقوبة", "حلبجة"
-    )
+    val cities = IraqiPrayerCalculator.cities
     val prayerNames = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var city by remember { mutableStateOf(prefs.getString("city", "كركوك") ?: "كركوك") }
-    val dateKey = java.time.LocalDate.now().toString()
+    var locationMessage by remember { mutableStateOf("لم يتم تحديد الموقع بعد") }
+    var locating by remember { mutableStateOf(false) }
+    val date = java.time.LocalDate.now()
+    val dateKey = date.toString()
     val storageKey = "official_manual_${city}_${dateKey}"
-    var times by remember(city, dateKey) {
+    var manualTimes by remember(city, dateKey) {
         mutableStateOf(prayerNames.mapIndexed { index, _ -> prefs.getString("${storageKey}_${index}", "") ?: "" })
     }
+    val calculated = remember(city, dateKey) { IraqiPrayerCalculator.calculate(city, date) }
+    val calculatedList = calculated?.let { listOf(it.fajr, it.sunrise, it.dhuhr, it.asr, it.maghrib, it.isha) }
+    val displayedTimes = manualTimes.mapIndexed { index, value -> value.ifBlank { calculatedList?.get(index) ?: "" } }
     var expanded by remember { mutableStateOf(false) }
     var showEntry by remember { mutableStateOf(false) }
-    var editTimes by remember { mutableStateOf(times) }
-    val validEntries = editTimes.all { it.matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")) }
+    var editTimes by remember { mutableStateOf(manualTimes) }
+
+    fun applyDetectedLocation(location: Location) {
+        val nearest = cities.minByOrNull { item ->
+            val result = FloatArray(1)
+            Location.distanceBetween(location.latitude, location.longitude, item.latitude, item.longitude, result)
+            result[0]
+        }
+        if (nearest != null) {
+            city = nearest.name
+            prefs.edit().putString("city", nearest.name)
+                .putFloat("last_latitude", location.latitude.toFloat())
+                .putFloat("last_longitude", location.longitude.toFloat()).apply()
+            val distance = FloatArray(1)
+            Location.distanceBetween(location.latitude, location.longitude, nearest.latitude, nearest.longitude, distance)
+            locationMessage = "تم تحديد الموقع؛ أقرب مركز محافظة: ${nearest.name} (حوالي ${(distance[0] / 1000).toInt()} كم)"
+        }
+        locating = false
+    }
+
+    fun detectLocation() {
+        val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        try {
+            val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
+            val last = providers.asSequence().filter { manager.isProviderEnabled(it) }
+                .mapNotNull { provider -> try { manager.getLastKnownLocation(provider) } catch (_: SecurityException) { null } }
+                .maxByOrNull { it.time }
+            if (last != null) {
+                applyDetectedLocation(last)
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val provider = providers.firstOrNull { manager.isProviderEnabled(it) }
+                if (provider == null) {
+                    locating = false
+                    locationMessage = "فعّل خدمة الموقع GPS من إعدادات الهاتف ثم حاول مجدداً"
+                } else {
+                    manager.getCurrentLocation(provider, null, context.mainExecutor) { result ->
+                        if (result != null) applyDetectedLocation(result)
+                        else {
+                            locating = false
+                            locationMessage = "تعذر تحديد الموقع. تأكد من تشغيل GPS وحاول مجدداً."
+                        }
+                    }
+                }
+            } else {
+                locating = false
+                locationMessage = "لم يتوفر موقع حديث. فعّل GPS وحاول مجدداً."
+            }
+        } catch (_: SecurityException) {
+            locating = false
+            locationMessage = "لم تُمنح صلاحية الموقع. يمكنك اختيار المحافظة يدوياً."
+        } catch (_: Exception) {
+            locating = false
+            locationMessage = "تعذر الوصول للموقع حالياً. اختر المحافظة يدوياً."
+        }
+    }
+
+    val locationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            locating = true
+            locationMessage = "جارٍ تحديد موقعك..."
+            detectLocation()
+        } else {
+            locationMessage = "رفضت صلاحية الموقع؛ اختيار المحافظة يدوياً متاح دائماً."
+        }
+    }
 
     if (showEntry) {
         AlertDialog(
             onDismissRequest = { showEntry = false },
             title = { Text("إدخال مواقيت اليوم") },
             text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text("أدخل الأوقات المنشورة في جدول الجهة الرسمية لمدينة $city بتاريخ $dateKey. لا تدخل أوقاتاً تقديرية.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
+                Column(Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("الأوقات اليدوية تتقدم على الحساب الفلكي التقريبي لمدينة $city بتاريخ $dateKey.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
                     prayerNames.forEachIndexed { index, prayer ->
                         OutlinedTextField(
                             value = editTimes[index],
                             onValueChange = { value -> editTimes = editTimes.toMutableList().also { it[index] = value } },
-                            label = { Text(prayer) },
-                            placeholder = { Text("مثال: 05:10") },
-                            singleLine = true,
+                            label = { Text(prayer) }, placeholder = { Text("مثال: 05:10") }, singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             isError = editTimes[index].isNotBlank() && !editTimes[index].matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
-                    Text("اكتب الوقت بصيغة 05:10 أو 17:45. يجب إدخال الأوقات الستة بصيغة صحيحة.", color = if (validEntries) Ink.copy(alpha = .6f) else MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    Text("اترك الخانة فارغة لاستخدام الحساب الفلكي التقريبي.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
                 }
             },
             confirmButton = {
-                TextButton(enabled = validEntries, onClick = {
-                    times = editTimes.map { it.trim().padStart(5, '0') }
+                TextButton(enabled = editTimes.all { it.isBlank() || it.matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")) }, onClick = {
+                    manualTimes = editTimes.map { it.trim().let { value -> if (value.isBlank()) "" else value.padStart(5, '0') } }
                     val editor = prefs.edit()
-                    times.forEachIndexed { index, value -> editor.putString("${storageKey}_${index}", value.trim()) }
+                    manualTimes.forEachIndexed { index, value -> editor.putString("${storageKey}_${index}", value) }
                     editor.apply()
                     showEntry = false
                 }) { Text("حفظ") }
@@ -234,64 +302,76 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     }
 
     PageColumn(modifier) {
-        PageHeader("مواقيت الصلاة", "اختر محافظتك لعرض جدول الصلاة")
+        PageHeader("مواقيت الصلاة", "تحديد تلقائي للموقع أو اختيار المحافظة يدوياً")
         Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("المدينة المحددة", color = Gold, fontWeight = FontWeight.Bold)
+                Text("موقعك الحالي", color = Gold, fontWeight = FontWeight.Bold)
                 Text(city, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                Text(locationMessage, color = Color.White.copy(alpha = .82f), fontSize = 12.sp, lineHeight = 18.sp)
+                Button(
+                    onClick = {
+                        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        if (fine || coarse) {
+                            locating = true
+                            locationMessage = "جارٍ تحديد موقعك..."
+                            detectLocation()
+                        } else locationPermission.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                    },
+                    enabled = !locating,
+                    colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Navy),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (locating) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    else Icon(Icons.Default.MyLocation, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (locating) "جارٍ تحديد الموقع..." else "تحديد موقعي تلقائياً")
+                }
                 Box {
-                    OutlinedButton(onClick = { expanded = true }) {
-                        Icon(Icons.Default.LocationCity, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("اختيار المدينة")
+                    OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.LocationCity, null); Spacer(Modifier.width(8.dp)); Text("اختيار المحافظة يدوياً")
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         cities.forEach { item ->
-                            DropdownMenuItem(text = { Text(item) }, onClick = {
-                                city = item
-                                prefs.edit().putString("city", item).apply()
+                            DropdownMenuItem(text = { Text(item.name) }, onClick = {
+                                city = item.name
+                                prefs.edit().putString("city", item.name).apply()
+                                locationMessage = "تم اختيار المحافظة يدوياً"
                                 expanded = false
                             })
                         }
                     }
                 }
-                Text("المصدر الرسمي للتحقق: ديوان الوقف السني العراقي. لا تُعرض الأوقات غير الموثقة على أنها رسمية.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
-                OutlinedButton(onClick = {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/")))
-                }) {
-                    Icon(Icons.Default.OpenInNew, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("فتح موقع الديوان")
-                }
+                Text("الموقع يُستخدم داخل الجهاز لاختيار أقرب مركز محافظة، ولا يُرسل إلى أي خادم.", color = Color.White.copy(alpha = .78f), fontSize = 11.sp)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("مواقيت اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(dateKey, color = Ink.copy(alpha = .6f), fontSize = 11.sp)
             }
-            Button(onClick = { editTimes = times; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
-                Icon(Icons.Default.Edit, null)
-                Spacer(Modifier.width(5.dp))
-                Text("إدخال الأوقات")
+            Button(onClick = { editTimes = manualTimes; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                Icon(Icons.Default.Edit, null); Spacer(Modifier.width(5.dp)); Text("تعديل الأوقات")
             }
         }
         prayerNames.forEachIndexed { index, prayer ->
             Surface(color = Color.White, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(prayer, color = Navy, fontWeight = FontWeight.SemiBold)
-                    Text(times[index].ifBlank { "غير مدخل" }, color = if (times[index].isBlank()) Ink.copy(alpha = .45f) else Navy, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(displayedTimes[index].ifBlank { "غير متاح" }, color = if (displayedTimes[index].isBlank()) Ink.copy(alpha = .45f) else Navy, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
         Text(
-            if (times.any { it.isNotBlank() }) "هذه الأوقات أدخلها المستخدم يدوياً؛ راجعها مع جدول الديوان قبل الاعتماد عليها. تُحفظ لهذا اليوم ولهذه المدينة فقط."
-            else "لم تُدخل مواقيت هذا اليوم بعد. لا يعرض التطبيق أوقاتاً تقديرية أو من مصدر غير رسمي على أنها مواقيت الديوان.",
-            color = Ink.copy(alpha = .7f), fontSize = 12.sp
+            if (manualTimes.any { it.isNotBlank() }) "الأوقات التي أدخلتها يدوياً تظهر بدلاً من الحساب. بقية الأوقات حساب فلكي تقريبي غير رسمي، وليست جدول الوقف السني."
+            else "الأوقات المعروضة حساب فلكي تقريبي غير رسمي باستخدام مركز المحافظة. راجع جدول الوقف السني قبل اعتمادها للصلاة.",
+            color = Ink.copy(alpha = .7f), fontSize = 12.sp, lineHeight = 19.sp
         )
+        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/"))) }) {
+            Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(6.dp)); Text("فتح موقع ديوان الوقف السني")
+        }
     }
 }
-
 
 private data class QuranAyah(val number: Int, val text: String)
 private data class QuranSurah(val number: Int, val ayat: List<QuranAyah>)
