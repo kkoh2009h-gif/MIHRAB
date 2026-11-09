@@ -289,9 +289,10 @@ private fun AdhkarScreen(modifier: Modifier = Modifier) {
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var count by remember { mutableIntStateOf(prefs.getInt("tasbih_count", 0)) }
     var selected by remember { mutableIntStateOf(prefs.getInt("tasbih_phrase", 0).coerceIn(0, 2)) }
+    var expandedPostPrayer by remember { mutableStateOf(true) }
     val phrases = listOf("سبحان الله", "الحمد لله", "الله أكبر")
     PageColumn(modifier) {
-        PageHeader("الأذكار والأدعية", "مساحة للذكر مع عدّاد شخصي")
+        PageHeader("الأذكار والأدعية", "أذكار موثقة وعدّاد شخصي")
         Surface(color = Navy, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text("العدّاد الشخصي", color = Gold, fontWeight = FontWeight.Bold)
@@ -306,11 +307,35 @@ private fun AdhkarScreen(modifier: Modifier = Modifier) {
                 OutlinedButton(onClick = { count = 0; prefs.edit().putInt("tasbih_count", 0).apply() }) { Text("تصفير العدّاد", color = Color.White) }
             }
         }
-        Text("الأذكار المأثورة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-        FeatureTile("أذكار الصباح", "سيتم إضافة النصوص مع تخريجها ومراجعها", Icons.Default.WbSunny)
-        FeatureTile("أذكار المساء", "سيتم إضافة النصوص مع تخريجها ومراجعها", Icons.Default.DarkMode)
-        FeatureTile("أذكار بعد الصلاة", "سيتم إضافة النصوص بعد مراجعة صحتها", Icons.Default.Favorite)
-        Text("العدّاد أداة شخصية، ولا يحدد عدداً شرعياً أو فضيلة مخصوصة.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+        Text("أذكار بعد الصلاة المفروضة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("١. أستغفر الله", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("ثلاث مرات بعد السلام من الصلاة.", color = Ink.copy(alpha = .75f), fontSize = 13.sp)
+                Divider(color = Cream)
+                Text("٢. اللهم أنت السلام ومنك السلام تباركت يا ذا الجلال والإكرام", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text("يقال بعد الاستغفار.", color = Ink.copy(alpha = .75f), fontSize = 13.sp)
+                Text("المصدر: صحيح مسلم، حديث 591.", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("التسبيح والتحميد والتكبير", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("سبحان الله (33 مرة)", color = Ink, fontSize = 16.sp)
+                Text("الحمد لله (33 مرة)", color = Ink, fontSize = 16.sp)
+                Text("الله أكبر (33 مرة)", color = Ink, fontSize = 16.sp)
+                Divider(color = Cream)
+                Text("ثم تمام المئة: لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير.", color = Navy, fontSize = 16.sp)
+                Text("المصدر: صحيح مسلم، حديث 597.", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("أذكار الصباح والمساء", color = Navy, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("قيد الإضافة بعد مراجعة النصوص والأسانيد والمراجع؛ لن نعرض نصاً غير متحقق منه.", color = Ink.copy(alpha = .7f), fontSize = 13.sp)
+            }
+        }
+        Text("العدّاد أداة مساعدة. الأعداد الواردة في الأذكار المأثورة مذكورة في مواضعها مع مصادرها.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
     }
 }
 
