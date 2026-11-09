@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -78,7 +80,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
     val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
 
     Column(
-        modifier.fillMaxSize().background(Cream).padding(horizontal = 20.dp, vertical = 18.dp),
+        modifier.fillMaxSize().background(Cream).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -87,7 +89,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
                 Text("رفيق يومك وعبادتك", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
             }
             Surface(color = Navy, shape = RoundedCornerShape(16.dp)) {
-                Icon(Icons.Default.Star, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
+                Icon(Icons.Default.AutoAwesome, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
             }
         }
         Surface(color = Navy, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
