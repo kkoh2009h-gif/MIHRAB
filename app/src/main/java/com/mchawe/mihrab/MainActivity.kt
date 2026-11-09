@@ -380,7 +380,10 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                 arabicSurahNames.forEachIndexed { index, name ->
                     DropdownMenuItem(text = { Text("${index + 1}. " + name) }, onClick = {
                         surahIndex = index + 1
-                        prefs.edit().putInt("quran_surah", surahIndex).apply()
+                        val pageForSurah = quranPageStarts.indexOfLast { it.first < surahIndex || (it.first == surahIndex && it.second <= 1) }
+                            .coerceAtLeast(0) + 1
+                        currentPage = pageForSurah
+                        prefs.edit().putInt("quran_surah", surahIndex).putInt("quran_current_page", currentPage).apply()
                         surahMenu = false
                     })
                 }
@@ -395,12 +398,25 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                 Text("تعذّر التحقق من اكتمال ملف المصحف؛ أوقفنا عرض النص احتياطاً.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
             }
             else -> {
-                val selectedSurah = surahs.firstOrNull { it.number == surahIndex }
-                if (selectedSurah != null) {
-                    Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("سُورَةُ " + arabicSurahNames[surahIndex - 1], color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            Text(selectedSurah.ayat.size.toString() + " آية", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
+                val allAyahs = surahs.flatMap { surah ->
+                    surah.ayat.map { ayah -> Triple(surah.number, ayah.number, ayah.text) }
+                }
+                val pageStart = quranPageStarts[currentPage - 1]
+                val nextPageStart = quranPageStarts.getOrNull(currentPage)
+                val startIndex = allAyahs.indexOfFirst { it.first == pageStart.first && it.second == pageStart.second }
+                val endIndex = if (nextPageStart == null) allAyahs.size else allAyahs.indexOfFirst {
+                    it.first == nextPageStart.first && it.second == nextPageStart.second
+                }.let { if (it < 0) allAyahs.size else it }
+                val pageAyahs = if (startIndex >= 0 && endIndex >= startIndex) allAyahs.subList(startIndex, endIndex) else emptyList()
+                if (pageAyahs.isNotEmpty()) {
+                    Surface(
+                        color = Navy,
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("مُصْحَفُ الْمَدِينَةِ الْمُنَوَّرَة", color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text("الجزء ${((currentPage - 1) / 20) + 1}  •  الصفحة $currentPage", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                         }
                     }
                     Surface(
@@ -432,21 +448,28 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                         ) {
                             Text("۞  الْمُصْحَفُ الشَّرِيف  ۞", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Divider(color = Gold.copy(alpha = .65f))
-                            Text("سُورَةُ " + arabicSurahNames[surahIndex - 1], color = Navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            selectedSurah.ayat.forEach { ayah ->
+                            pageAyahs.forEachIndexed { index, item ->
+                                val (surahNumber, ayahNumber, ayahText) = item
+                                if (index == 0 || pageAyahs[index - 1].first != surahNumber) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text("سُورَةُ " + arabicSurahNames[surahNumber - 1], color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                                }
                                 Text(
-                                    ayah.text + "  ﴿" + ayah.number + "﴾",
+                                    ayahText + "  ﴿" + ayahNumber + "﴾",
                                     color = Color(0xFF33291F), fontSize = 22.sp, lineHeight = 42.sp,
                                     textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth()
                                 )
                             }
                             Divider(color = Gold.copy(alpha = .65f))
                             Text("—  $currentPage  —", color = Navy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Text("اسحب أفقياً للتنقل بين أرقام الصفحات", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
+                            Text("اسحب أفقياً للتنقل بين الصفحات", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
                         }
                     }
-                    Text("تنسيق ورقي أولي. ربط كل آية بموضعها الدقيق ضمن صفحات مصحف المدينة الـ604 يحتاج ملف فهرسة صفحات موثوقاً؛ لم نُنشئ توزيعاً تخمينياً للآيات.", color = Ink.copy(alpha = .7f), fontSize = 11.sp, lineHeight = 18.sp)
-                    Text("المصدر: Tanzil Uthmani 1.1. النص معروض كما ورد في المصدر.", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
+                    Text("توزيع الآيات مرتبط بفهرس صفحات مصحف المدينة ذي 604 صفحات.", color = Ink.copy(alpha = .7f), fontSize = 11.sp)
+                } else {
+                    Text("تعذّر تحديد آيات هذه الصفحة من الفهرس.", color = MaterialTheme.colorScheme.error)
+                }
+
                 }
             }
         }
