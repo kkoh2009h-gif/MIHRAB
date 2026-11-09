@@ -280,8 +280,44 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     var completedPages by remember { mutableIntStateOf(prefs.getInt("khatmah_pages", 0).coerceIn(0, 604)) }
     var currentPage by remember { mutableIntStateOf(prefs.getInt("quran_current_page", 1).coerceIn(1, 604)) }
     var savedPage by remember { mutableIntStateOf(prefs.getInt("quran_saved_page", 1).coerceIn(1, 604)) }
+    var showJumpDialog by remember { mutableStateOf(false) }
+    var jumpPageText by remember { mutableStateOf(currentPage.toString()) }
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
+
+    if (showJumpDialog) {
+        val requestedPage = jumpPageText.toIntOrNull()
+        AlertDialog(
+            onDismissRequest = { showJumpDialog = false },
+            title = { Text("الانتقال إلى صفحة") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = jumpPageText,
+                        onValueChange = { jumpPageText = it.filter(Char::isDigit).take(3) },
+                        label = { Text("رقم الصفحة") },
+                        placeholder = { Text("1 - 604") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        isError = requestedPage == null || requestedPage !in 1..604
+                    )
+                    Text("أدخل رقماً من 1 إلى 604.", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = requestedPage != null && requestedPage in 1..604,
+                    onClick = {
+                        currentPage = requestedPage!!
+                        prefs.edit().putInt("quran_current_page", currentPage).apply()
+                        showJumpDialog = false
+                    }
+                ) { Text("انتقال") }
+            },
+            dismissButton = { TextButton(onClick = { showJumpDialog = false }) { Text("إلغاء") } }
+        )
+    }
+
     PageColumn(modifier) {
         PageHeader("القرآن الكريم", "مصحف بصفحات واضحة وقراءة مريحة")
         Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
@@ -316,6 +352,17 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("الصفحة الحالية", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
                 Text("$currentPage / 604", color = Navy, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                OutlinedButton(
+                    onClick = {
+                        jumpPageText = currentPage.toString()
+                        showJumpDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.FindInPage, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("الانتقال إلى رقم صفحة")
+                }
                 LinearProgressIndicator(
                     progress = { currentPage / 604f },
                     modifier = Modifier.fillMaxWidth(),
