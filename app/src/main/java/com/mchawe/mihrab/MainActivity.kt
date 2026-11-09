@@ -20,11 +20,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.chrono.HijrahDate
 import java.time.temporal.ChronoField
@@ -272,6 +275,14 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     }
 }
 
+
+private data class QuranAyah(val number: Int, val text: String)
+private data class QuranSurah(val number: Int, val ayat: List<QuranAyah>)
+
+private val arabicSurahNames = listOf(
+"الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق","الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس","التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد","الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"
+)
+
 @Composable
 private fun QuranScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -282,8 +293,39 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     var savedPage by remember { mutableIntStateOf(prefs.getInt("quran_saved_page", 1).coerceIn(1, 604)) }
     var showJumpDialog by remember { mutableStateOf(false) }
     var jumpPageText by remember { mutableStateOf(currentPage.toString()) }
+    var surahIndex by remember { mutableIntStateOf(prefs.getInt("quran_surah", 1).coerceIn(1, 114)) }
+    var surahs by remember { mutableStateOf<List<QuranSurah>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var loadError by remember { mutableStateOf(false) }
+    var surahMenu by remember { mutableStateOf(false) }
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
+
+    LaunchedEffect(Unit) {
+        try {
+            val loaded = withContext(Dispatchers.IO) {
+                context.assets.open("quran-uthmani.txt").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    lines.mapNotNull { line ->
+                        val parts = line.split('|', limit = 3)
+                        if (parts.size != 3) null else {
+                            val s = parts[0].toIntOrNull()
+                            val a = parts[1].toIntOrNull()
+                            if (s == null || a == null || s !in 1..114 || a < 1 || parts[2].isBlank()) null
+                            else Triple(s, a, parts[2])
+                        }
+                    }.toList().groupBy { it.first }.map { (number, verses) ->
+                        QuranSurah(number, verses.map { QuranAyah(it.second, it.third) }.sortedBy { it.number })
+                    }.sortedBy { it.number }
+                }
+            }
+            surahs = loaded
+            loadError = loaded.size != 114 || loaded.sumOf { it.ayat.size } != 6236
+        } catch (_: Exception) {
+            loadError = true
+        } finally {
+            loading = false
+        }
+    }
 
     if (showJumpDialog) {
         val requestedPage = jumpPageText.toIntOrNull()
@@ -301,33 +343,80 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         isError = requestedPage == null || requestedPage !in 1..604
                     )
-                    Text("أدخل رقماً من 1 إلى 604.", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
                 }
             },
             confirmButton = {
-                TextButton(
-                    enabled = requestedPage != null && requestedPage in 1..604,
-                    onClick = {
-                        currentPage = requestedPage!!
-                        prefs.edit().putInt("quran_current_page", currentPage).apply()
-                        showJumpDialog = false
-                    }
-                ) { Text("انتقال") }
+                TextButton(enabled = requestedPage != null && requestedPage in 1..604, onClick = {
+                    currentPage = requestedPage!!
+                    prefs.edit().putInt("quran_current_page", currentPage).apply()
+                    showJumpDialog = false
+                }) { Text("انتقال") }
             },
             dismissButton = { TextButton(onClick = { showJumpDialog = false }) { Text("إلغاء") } }
         )
     }
 
     PageColumn(modifier) {
-        PageHeader("القرآن الكريم", "مصحف بصفحات واضحة وقراءة مريحة")
+        PageHeader("القرآن الكريم", "الرسم العثماني — رواية حفص")
         Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Default.MenuBook, null, tint = Gold, modifier = Modifier.size(42.dp))
-                Text("المصحف الشريف", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text("نعمل على إضافة نص قرآني موثّق بالرسم العثماني وتخطيط صفحات مطابق لمصحف معتمد.", color = Ink.copy(alpha = .7f), fontSize = 13.sp)
-                Text("لن نستخدم نصوصاً تجريبية أو آيات غير مدققة.", color = Navy, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("نص المصحف من مشروع تنزيل Tanzil، الإصدار 1.1، دون تغيير في النص. يُضمّن داخل التطبيق ليعمل دون إنترنت.", color = Ink.copy(alpha = .75f), fontSize = 13.sp, lineHeight = 21.sp)
+                TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://tanzil.net/"))) }) {
+                    Text("المصدر وشروط الاستخدام: Tanzil")
+                }
             }
         }
+        Text("اختر السورة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Box {
+            OutlinedButton(onClick = { surahMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                Text(arabicSurahNames[surahIndex - 1] + " • السورة " + surahIndex)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, null)
+            }
+            DropdownMenu(expanded = surahMenu, onDismissRequest = { surahMenu = false }) {
+                arabicSurahNames.forEachIndexed { index, name ->
+                    DropdownMenuItem(text = { Text("${index + 1}. " + name) }, onClick = {
+                        surahIndex = index + 1
+                        prefs.edit().putInt("quran_surah", surahIndex).apply()
+                        surahMenu = false
+                    })
+                }
+            }
+        }
+        when {
+            loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp))
+                Text("جارٍ تجهيز المصحف...", color = Ink.copy(alpha = .7f))
+            }
+            loadError -> Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Text("تعذّر التحقق من اكتمال ملف المصحف؛ أوقفنا عرض النص احتياطاً.", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+            }
+            else -> {
+                val selectedSurah = surahs.firstOrNull { it.number == surahIndex }
+                if (selectedSurah != null) {
+                    Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("سُورَةُ " + arabicSurahNames[surahIndex - 1], color = Gold, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            Text(selectedSurah.ayat.size.toString() + " آية", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
+                        }
+                    }
+                    Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                            selectedSurah.ayat.forEach { ayah ->
+                                Text(
+                                    ayah.text + "  ۞" + ayah.number,
+                                    color = Navy, fontSize = 23.sp, lineHeight = 43.sp,
+                                    textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth()
+                                )
+                                Divider(color = Cream)
+                            }
+                        }
+                    }
+                    Text("المصدر: Tanzil Uthmani 1.1. النص معروض كما ورد في المصدر.", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
+                }
+            }
+        }
+
         Text("خطة ختم القرآن", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -350,61 +439,26 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
         Text("موضع القراءة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("الصفحة الحالية", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
-                Text("$currentPage / 604", color = Navy, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                OutlinedButton(
-                    onClick = {
-                        jumpPageText = currentPage.toString()
-                        showJumpDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.FindInPage, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("الانتقال إلى رقم صفحة")
+                Text("الصفحة الحالية: $currentPage / 604", color = Navy, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                OutlinedButton(onClick = { jumpPageText = currentPage.toString(); showJumpDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.FindInPage, null); Spacer(Modifier.width(8.dp)); Text("الانتقال إلى رقم صفحة")
                 }
-                LinearProgressIndicator(
-                    progress = { currentPage / 604f },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Gold
-                )
+                LinearProgressIndicator(progress = { currentPage / 604f }, modifier = Modifier.fillMaxWidth(), color = Gold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    OutlinedButton(
-                        onClick = {
-                            currentPage = (currentPage - 1).coerceAtLeast(1)
-                            prefs.edit().putInt("quran_current_page", currentPage).apply()
-                        },
-                        enabled = currentPage > 1
-                    ) { Text("الصفحة السابقة") }
-                    Button(
-                        onClick = {
-                            currentPage = (currentPage + 1).coerceAtMost(604)
-                            prefs.edit().putInt("quran_current_page", currentPage).apply()
-                        },
-                        enabled = currentPage < 604,
-                        colors = ButtonDefaults.buttonColors(containerColor = Navy)
-                    ) { Text("الصفحة التالية") }
+                    OutlinedButton(onClick = { currentPage = (currentPage - 1).coerceAtLeast(1); prefs.edit().putInt("quran_current_page", currentPage).apply() }, enabled = currentPage > 1) { Text("السابقة") }
+                    Button(onClick = { currentPage = (currentPage + 1).coerceAtMost(604); prefs.edit().putInt("quran_current_page", currentPage).apply() }, enabled = currentPage < 604, colors = ButtonDefaults.buttonColors(containerColor = Navy)) { Text("التالية") }
                 }
-                Divider(color = Cream)
                 Text("آخر موضع محفوظ: صفحة $savedPage", color = Navy, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            savedPage = currentPage
-                            prefs.edit().putInt("quran_saved_page", savedPage).apply()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Navy)
-                    ) { Icon(Icons.Default.Bookmark, null); Spacer(Modifier.width(6.dp)); Text("حفظ الموضع") }
-                    OutlinedButton(onClick = {
-                        currentPage = savedPage
-                        prefs.edit().putInt("quran_current_page", currentPage).apply()
-                    }) { Text("استرجاع المحفوظ") }
+                    Button(onClick = { savedPage = currentPage; prefs.edit().putInt("quran_saved_page", savedPage).apply() }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) { Text("حفظ الموضع") }
+                    OutlinedButton(onClick = { currentPage = savedPage; prefs.edit().putInt("quran_current_page", currentPage).apply() }) { Text("استرجاع المحفوظ") }
                 }
-                Text("يُحفظ موضعك على الجهاز حتى بعد إغلاق التطبيق.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                Text("ربط أرقام صفحات المصحف المطبوعة بالسور قيد الإضافة.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
             }
         }
     }
 }
+
 @Composable
 private fun AdhkarScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
