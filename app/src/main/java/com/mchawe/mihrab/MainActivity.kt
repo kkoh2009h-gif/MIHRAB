@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.chrono.HijrahDate
@@ -171,6 +173,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     var showEntry by remember { mutableStateOf(false) }
     var editTimes by remember { mutableStateOf(times) }
+    val validEntries = editTimes.all { it.matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")) }
 
     if (showEntry) {
         AlertDialog(
@@ -189,14 +192,17 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                             label = { Text(prayer) },
                             placeholder = { Text("مثال: 05:10") },
                             singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            isError = editTimes[index].isNotBlank() && !editTimes[index].matches(Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+                    Text("اكتب الوقت بصيغة 05:10 أو 17:45. يجب إدخال الأوقات الستة بصيغة صحيحة.", color = if (validEntries) Ink.copy(alpha = .6f) else MaterialTheme.colorScheme.error, fontSize = 12.sp)
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    times = editTimes
+                TextButton(enabled = validEntries, onClick = {
+                    times = editTimes.map { it.trim().padStart(5, '0') }
                     val editor = prefs.edit()
                     times.forEachIndexed { index, value -> editor.putString("${storageKey}_${index}", value.trim()) }
                     editor.apply()
