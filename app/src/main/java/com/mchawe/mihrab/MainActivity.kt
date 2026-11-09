@@ -149,7 +149,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
         FeatureTile("وردك اليومي", "تابع قراءتك وختمتك", Icons.Default.MenuBook)
         FeatureTile("أذكار اليوم", "أذكار الصباح والمساء والأدعية", Icons.Default.Favorite)
         FeatureTile("التقويم الهجري", "تابع التاريخ والمناسبات الثابتة", Icons.Default.CalendarMonth)
-        Text("مِحراب • الإصدار 0.4.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+        Text("مِحراب • الإصدار 0.6.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
     }
 }
 
@@ -289,7 +289,6 @@ private fun AdhkarScreen(modifier: Modifier = Modifier) {
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var count by remember { mutableIntStateOf(prefs.getInt("tasbih_count", 0)) }
     var selected by remember { mutableIntStateOf(prefs.getInt("tasbih_phrase", 0).coerceIn(0, 2)) }
-    var expandedPostPrayer by remember { mutableStateOf(true) }
     val phrases = listOf("سبحان الله", "الحمد لله", "الله أكبر")
     PageColumn(modifier) {
         PageHeader("الأذكار والأدعية", "أذكار موثقة وعدّاد شخصي")
