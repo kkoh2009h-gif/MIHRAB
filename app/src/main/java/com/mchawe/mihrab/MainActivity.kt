@@ -641,7 +641,8 @@ private fun DhikrProgressCard(
     source: String,
     target: Int
 ) {
-    var count by remember { mutableIntStateOf(prefs.getInt(storageKey, 0).coerceIn(0, target)) }
+    val dailyStorageKey = "${storageKey}_${java.time.LocalDate.now()}"
+    var count by remember(dailyStorageKey) { mutableIntStateOf(prefs.getInt(dailyStorageKey, 0).coerceIn(0, target)) }
     Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             Text(phrase, color = Navy, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
@@ -651,7 +652,7 @@ private fun DhikrProgressCard(
                 Button(
                     onClick = {
                         count = (count + 1).coerceAtMost(target)
-                        prefs.edit().putInt(storageKey, count).apply()
+                        prefs.edit().putInt(dailyStorageKey, count).apply()
                     },
                     enabled = count < target,
                     colors = ButtonDefaults.buttonColors(containerColor = Navy)
@@ -673,8 +674,9 @@ private fun DhikrCounterCard(
     source: String,
     target: Int
 ) {
+    val dailyStorageKey = "${storageKey}_${java.time.LocalDate.now()}"
     var isEvening by remember { mutableStateOf(false) }
-    var count by remember { mutableIntStateOf(prefs.getInt(storageKey, 0).coerceIn(0, target)) }
+    var count by remember(dailyStorageKey) { mutableIntStateOf(prefs.getInt(dailyStorageKey, 0).coerceIn(0, target)) }
     Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, color = Navy, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -688,7 +690,7 @@ private fun DhikrCounterCard(
                 Text("$count / $target", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Button(onClick = {
                     count = (count + 1).coerceAtMost(target)
-                    prefs.edit().putInt(storageKey, count).apply()
+                    prefs.edit().putInt(dailyStorageKey, count).apply()
                 }, enabled = count < target, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
                     Text(if (count >= target) "اكتمل" else "تم الذكر")
                 }
