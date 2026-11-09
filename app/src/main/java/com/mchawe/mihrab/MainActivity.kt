@@ -439,7 +439,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                     ) {
                         Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("مُصْحَفُ الْمَدِينَةِ الْمُنَوَّرَة", color = Gold, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Text("الجزء ${((currentPage - 1) / 20) + 1}  •  الصفحة $currentPage", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                            Text("الصفحة $currentPage من 604", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                         }
                     }
                     Surface(
@@ -535,7 +535,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                     Button(onClick = { savedPage = currentPage; prefs.edit().putInt("quran_saved_page", savedPage).apply() }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) { Text("حفظ الموضع") }
                     OutlinedButton(onClick = { currentPage = savedPage; prefs.edit().putInt("quran_current_page", currentPage).apply() }) { Text("استرجاع المحفوظ") }
                 }
-                Text("ربط أرقام صفحات المصحف المطبوعة بالسور قيد الإضافة.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                Text("تم ربط صفحات القراءة بفهرس مصحف المدينة المنورة ذي الصفحات الـ604. موضعك الحالي يُحفظ تلقائياً أثناء التنقل.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
             }
         }
     }
