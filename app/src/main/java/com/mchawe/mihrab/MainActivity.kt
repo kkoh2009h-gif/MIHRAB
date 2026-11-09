@@ -2,6 +2,8 @@ package com.mchawe.mihrab
 
 import android.os.Bundle
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -182,7 +184,15 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
-                Text("سيتم ربط المدينة بالموقع الجغرافي ومصدر المواقيت الرسمي في الخطوة التالية.", color = Color.White.copy(alpha = .75f), fontSize = 12.sp)
+                Text("المصدر المعتمد للمراجعة: موقع ديوان الوقف السني العراقي.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                OutlinedButton(onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/"))
+                    context.startActivity(intent)
+                }) {
+                    Icon(Icons.Default.OpenInNew, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("فتح موقع ديوان الوقف السني")
+                }
             }
         }
         Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
@@ -194,7 +204,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        Text("لن نعرض أوقاتاً تقديرية على أنها مواقيت رسمية.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+        Text("لم نتحقق بعد من واجهة بيانات رسمية منفصلة لكل مدينة؛ لذلك لن ننسخ مواقيت عامة أو نحسب أوقاتاً بديلة على أنها صادرة عن الديوان. افتح الموقع الرسمي للمراجعة إلى أن يكتمل الربط والتحقق.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
     }
 }
 
