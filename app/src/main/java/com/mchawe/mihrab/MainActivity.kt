@@ -304,6 +304,14 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
 
+    LaunchedEffect(currentPage) {
+        val pageSurah = quranPageStarts[currentPage - 1].first
+        if (surahIndex != pageSurah) {
+            surahIndex = pageSurah
+            prefs.edit().putInt("quran_surah", pageSurah).apply()
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
             val loaded = withContext(Dispatchers.IO) {
