@@ -152,7 +152,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
         FeatureTile("وردك اليومي", "تابع قراءتك وختمتك", Icons.Default.MenuBook)
         FeatureTile("أذكار اليوم", "أذكار الصباح والمساء والأدعية", Icons.Default.Favorite)
         FeatureTile("التقويم الهجري", "تابع التاريخ والمناسبات الثابتة", Icons.Default.CalendarMonth)
-        Text("مِحراب • الإصدار 0.9.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+        Text("مِحراب • الإصدار 1.0.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
     }
 }
 
