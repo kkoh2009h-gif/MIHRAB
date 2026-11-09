@@ -159,11 +159,56 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun PrayerScreen(modifier: Modifier = Modifier) {
     val cities = listOf("كركوك", "بغداد", "الموصل", "أربيل", "السليمانية", "دهوك", "البصرة", "النجف", "كربلاء", "الأنبار")
+    val prayerNames = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
     val context = LocalContext.current
-    var city by remember { mutableStateOf(context.getSharedPreferences("mihrab", Context.MODE_PRIVATE).getString("city", "كركوك") ?: "كركوك") }
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var city by remember { mutableStateOf(prefs.getString("city", "كركوك") ?: "كركوك") }
+    val dateKey = java.time.LocalDate.now().toString()
+    val storageKey = "official_manual_${city}_${dateKey}"
+    var times by remember(city, dateKey) {
+        mutableStateOf(prayerNames.mapIndexed { index, _ -> prefs.getString("${storageKey}_${index}", "") ?: "" })
+    }
     var expanded by remember { mutableStateOf(false) }
+    var showEntry by remember { mutableStateOf(false) }
+    var editTimes by remember { mutableStateOf(times) }
+
+    if (showEntry) {
+        AlertDialog(
+            onDismissRequest = { showEntry = false },
+            title = { Text("إدخال مواقيت اليوم") },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("انقل الأوقات كما تظهر في جدول الديوان الرسمي لمدينة $city بتاريخ $dateKey. لا تدخل أوقاتاً تقديرية.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
+                    prayerNames.forEachIndexed { index, prayer ->
+                        OutlinedTextField(
+                            value = editTimes[index],
+                            onValueChange = { value -> editTimes = editTimes.toMutableList().also { it[index] = value } },
+                            label = { Text(prayer) },
+                            placeholder = { Text("مثال: 05:10") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    times = editTimes
+                    val editor = prefs.edit()
+                    times.forEachIndexed { index, value -> editor.putString("${storageKey}_${index}", value.trim()) }
+                    editor.apply()
+                    showEntry = false
+                }) { Text("حفظ") }
+            },
+            dismissButton = { TextButton(onClick = { showEntry = false }) { Text("إلغاء") } }
+        )
+    }
+
     PageColumn(modifier) {
-        PageHeader("مواقيت الصلاة", "المواقيت الخاصة بمدينتك")
+        PageHeader("مواقيت الصلاة", "مواقيت اليوم حسب المدينة المحددة")
         Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("المدينة المحددة", color = Gold, fontWeight = FontWeight.Bold)
@@ -178,33 +223,46 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         cities.forEach { item ->
                             DropdownMenuItem(text = { Text(item) }, onClick = {
                                 city = item
-                                context.getSharedPreferences("mihrab", Context.MODE_PRIVATE).edit().putString("city", item).apply()
+                                prefs.edit().putString("city", item).apply()
                                 expanded = false
                             })
                         }
                     }
                 }
-                Text("المصدر المعتمد للمراجعة: موقع ديوان الوقف السني العراقي.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                Text("المصدر الرسمي للمراجعة: ديوان الوقف السني العراقي.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                 OutlinedButton(onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/"))
-                    context.startActivity(intent)
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/")))
                 }) {
                     Icon(Icons.Default.OpenInNew, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("فتح موقع ديوان الوقف السني")
+                    Text("فتح موقع الديوان")
                 }
             }
         }
-        Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء").forEach { prayer ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("جدول اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(dateKey, color = Ink.copy(alpha = .6f), fontSize = 11.sp)
+            }
+            Button(onClick = { editTimes = times; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                Icon(Icons.Default.Edit, null)
+                Spacer(Modifier.width(5.dp))
+                Text("إدخال الأوقات")
+            }
+        }
+        prayerNames.forEachIndexed { index, prayer ->
             Surface(color = Color.White, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(prayer, color = Navy, fontWeight = FontWeight.SemiBold)
-                    Text("بانتظار البيانات الموثقة", color = Ink.copy(alpha = .55f), fontSize = 12.sp)
+                    Text(times[index].ifBlank { "غير مدخل" }, color = if (times[index].isBlank()) Ink.copy(alpha = .45f) else Navy, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
-        Text("لم نتحقق بعد من واجهة بيانات رسمية منفصلة لكل مدينة؛ لذلك لن ننسخ مواقيت عامة أو نحسب أوقاتاً بديلة على أنها صادرة عن الديوان. افتح الموقع الرسمي للمراجعة إلى أن يكتمل الربط والتحقق.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+        Text(
+            if (times.any { it.isNotBlank() }) "هذه الأوقات أدخلها المستخدم يدوياً؛ راجعها مع جدول الديوان قبل الاعتماد عليها. تُحفظ لهذا اليوم ولهذه المدينة فقط."
+            else "لم تُدخل مواقيت هذا اليوم بعد. لا يعرض التطبيق أوقاتاً تقديرية أو من مصدر غير رسمي على أنها مواقيت الديوان.",
+            color = Ink.copy(alpha = .7f), fontSize = 12.sp
+        )
     }
 }
 
