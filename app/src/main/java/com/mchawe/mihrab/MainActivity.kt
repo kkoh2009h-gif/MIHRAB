@@ -471,18 +471,21 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                         ) {
                             Text("۞  الْمُصْحَفُ الشَّرِيف  ۞", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             Divider(color = Gold.copy(alpha = .65f))
-                            pageAyahs.forEachIndexed { index, item ->
-                                val (surahNumber, ayahNumber, ayahText) = item
-                                if (index == 0 || pageAyahs[index - 1].first != surahNumber) {
-                                    Spacer(Modifier.height(4.dp))
-                                    Text("سُورَةُ " + arabicSurahNames[surahNumber - 1], color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                                }
+                            pageAyahs.groupBy { it.first }.forEach { (surahNumber, verses) ->
+                                Spacer(Modifier.height(4.dp))
                                 Text(
-                                    ayahText + "  ﴿" + ayahNumber + "﴾",
+                                    "سُورَةُ " + arabicSurahNames[surahNumber - 1],
+                                    color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    verses.joinToString("  ") { verse ->
+                                        verse.third + "  ﴿" + verse.second + "﴾"
+                                    },
                                     color = Color(0xFF33291F),
                                     fontSize = (19f + readingFontScale * 7f).sp,
                                     lineHeight = (36f + readingFontScale * 10f).sp,
-                                    textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth()
+                                    textAlign = TextAlign.Justify,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                             Divider(color = Gold.copy(alpha = .65f))
