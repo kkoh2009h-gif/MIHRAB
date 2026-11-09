@@ -80,6 +80,11 @@ jobs:
           echo "Prepared $(find app/src/main/assets/mushaf_pages -name '*.png' | wc -l) Mushaf pages"
       - name: Build debug APK
         run: gradle assembleDebug
+      - name: Verify APK signature
+        run: |
+          APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          test -n "$APK_SIGNER"
+          "$APK_SIGNER" verify --verbose app/build/outputs/apk/debug/app-debug.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
