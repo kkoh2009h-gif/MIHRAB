@@ -477,6 +477,16 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                                     "سُورَةُ " + arabicSurahNames[surahNumber - 1],
                                     color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold
                                 )
+                                if (verses.first().second == 1 && surahNumber != 1 && surahNumber != 9) {
+                                    Text(
+                                        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+                                        color = Color(0xFF33291F),
+                                        fontSize = (19f + readingFontScale * 7f).sp,
+                                        lineHeight = (36f + readingFontScale * 10f).sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                                 Text(
                                     verses.joinToString("  ") { verse ->
                                         verse.third + "  ﴿" + verse.second + "﴾"
