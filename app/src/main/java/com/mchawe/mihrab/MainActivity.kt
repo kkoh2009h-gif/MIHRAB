@@ -87,7 +87,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
                 Text("رفيق يومك وعبادتك", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
             }
             Surface(color = Navy, shape = RoundedCornerShape(16.dp)) {
-                Icon(Icons.Default.Mosque, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
+                Icon(Icons.Default.Star, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
             }
         }
         Surface(color = Navy, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
