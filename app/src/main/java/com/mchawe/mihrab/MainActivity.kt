@@ -504,6 +504,32 @@ private fun MoreScreen(modifier: Modifier = Modifier) {
     }
     PageColumn(modifier) {
         PageHeader("المزيد", "إعدادات وأدوات مِحراب")
+        Text("اختيار صوت الأذان", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        val soundOptions = listOf("الصوت الافتراضي", "أذان مكة", "أذان المدينة", "أذان هادئ")
+        var selectedSound by remember { mutableIntStateOf(prefs.getInt("adhan_sound", 0).coerceIn(0, soundOptions.lastIndex)) }
+        var soundMenu by remember { mutableStateOf(false) }
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("الصوت المختار", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
+                Box {
+                    OutlinedButton(onClick = { soundMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(soundOptions[selectedSound])
+                        Spacer(Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowDropDown, null)
+                    }
+                    DropdownMenu(expanded = soundMenu, onDismissRequest = { soundMenu = false }) {
+                        soundOptions.forEachIndexed { index, option ->
+                            DropdownMenuItem(text = { Text(option) }, onClick = {
+                                selectedSound = index
+                                prefs.edit().putInt("adhan_sound", index).apply()
+                                soundMenu = false
+                            })
+                        }
+                    }
+                }
+                Text("اختيار الصوت يُحفظ كتفضيل فقط. ملفات الأذان والمعاينة والتشغيل بالخلفية ستُضاف بعد توفير ملفات مرخّصة واختبار خدمة التشغيل.", color = Ink.copy(alpha = .65f), fontSize = 12.sp, lineHeight = 19.sp)
+            }
+        }
         Text("إعدادات الأذان", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
