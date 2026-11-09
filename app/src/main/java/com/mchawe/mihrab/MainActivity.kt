@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
+import java.time.chrono.HijrahDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -112,6 +113,8 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
     }
     val time = now.format(DateTimeFormatter.ofPattern("hh:mm:ss a", Locale("ar")))
     val date = now.format(DateTimeFormatter.ofPattern("EEEE، d MMMM yyyy", Locale("ar")))
+    val hijriDate = HijrahDate.from(now.toLocalDate())
+    val hijriText = hijriDate.toString()
 
     PageColumn(modifier) {
         Row(
@@ -132,6 +135,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
                 Text("الساعة الآن", color = Gold.copy(alpha = .9f), fontSize = 13.sp)
                 Text(time, color = Color.White, fontSize = 38.sp, fontWeight = FontWeight.Light)
                 Text(date, color = Color.White.copy(alpha = .8f), fontSize = 14.sp)
+                Text("التاريخ الهجري: $hijriText هـ", color = Gold, fontSize = 13.sp)
                 Spacer(Modifier.height(16.dp))
                 Text("مواقيت الصلاة", color = Gold, fontWeight = FontWeight.SemiBold)
                 Text(
@@ -144,7 +148,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
         FeatureTile("وردك اليومي", "تابع قراءتك وختمتك", Icons.Default.MenuBook)
         FeatureTile("أذكار اليوم", "أذكار الصباح والمساء والأدعية", Icons.Default.Favorite)
         FeatureTile("التقويم الهجري", "تابع التاريخ والمناسبات الثابتة", Icons.Default.CalendarMonth)
-        Text("مِحراب • الإصدار 0.2.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
+        Text("مِحراب • الإصدار 0.4.0", color = Ink.copy(alpha = .45f), fontSize = 11.sp)
     }
 }
 
@@ -194,32 +198,72 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun QuranScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var targetDays by remember { mutableIntStateOf(prefs.getInt("khatmah_days", 30)) }
+    var completedPages by remember { mutableIntStateOf(prefs.getInt("khatmah_pages", 0).coerceIn(0, 604)) }
+    val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
+    val progress = completedPages / 604f
     PageColumn(modifier) {
         PageHeader("القرآن الكريم", "مصحف بصفحات واضحة وقراءة مريحة")
         Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Default.MenuBook, null, tint = Gold, modifier = Modifier.size(42.dp))
                 Text("المصحف الشريف", color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    "نعمل على إضافة نص قرآني موثّق بالرسم العثماني وتخطيط صفحات مطابق لمصحف معتمد.",
-                    color = Ink.copy(alpha = .7f), fontSize = 13.sp
-                )
+                Text("نعمل على إضافة نص قرآني موثّق بالرسم العثماني وتخطيط صفحات مطابق لمصحف معتمد.", color = Ink.copy(alpha = .7f), fontSize = 13.sp)
                 Text("لن نستخدم نصوصاً تجريبية أو آيات غير مدققة.", color = Navy, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-        FeatureTile("علامات القراءة", "حفظ موضع القراءة والعلامات المرجعية", Icons.Default.Bookmark)
-        FeatureTile("ختمة القرآن", "خطط ختمة 7 أو 15 أو 30 يوماً", Icons.Default.CheckCircle)
+        Text("خطة ختم القرآن", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("اختر مدة الختمة", color = Navy, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(7, 15, 30).forEach { days ->
+                        FilterChip(selected = targetDays == days, onClick = { targetDays = days; prefs.edit().putInt("khatmah_days", days).apply() }, label = { Text("$days يوم") })
+                    }
+                }
+                Text("الإنجاز: $completedPages من 604 صفحة", color = Navy, fontWeight = FontWeight.SemiBold)
+                LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth(), color = Gold)
+                Text("المعدل التقريبي: $dailyPages صفحة يومياً", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = { completedPages = (completedPages + 1).coerceAtMost(604); prefs.edit().putInt("khatmah_pages", completedPages).apply() }, enabled = completedPages < 604, colors = ButtonDefaults.buttonColors(containerColor = Navy)) { Text("أكملت صفحة") }
+                    OutlinedButton(onClick = { completedPages = 0; prefs.edit().putInt("khatmah_pages", 0).apply() }) { Text("إعادة الختمة") }
+                }
+                if (completedPages == 604) Text("ما شاء الله، أكملت 604 صفحة. تقبّل الله منك.", color = Navy, fontWeight = FontWeight.Bold)
+            }
+        }
+        FeatureTile("علامات القراءة", "ميزة حفظ موضع المصحف قيد التطوير", Icons.Default.Bookmark)
     }
 }
-
 @Composable
 private fun AdhkarScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var count by remember { mutableIntStateOf(prefs.getInt("tasbih_count", 0)) }
+    var selected by remember { mutableIntStateOf(prefs.getInt("tasbih_phrase", 0).coerceIn(0, 2)) }
+    val phrases = listOf("سبحان الله", "الحمد لله", "الله أكبر")
     PageColumn(modifier) {
-        PageHeader("الأذكار والأدعية", "أذكار ثابتة مع مصادرها")
-        FeatureTile("أذكار الصباح", "نصوص موثقة وعدّاد للتكرار", Icons.Default.WbSunny)
-        FeatureTile("أذكار المساء", "اقرأ أذكار المساء واحفظ تقدمك", Icons.Default.DarkMode)
-        FeatureTile("أذكار بعد الصلاة", "أذكار صحيحة مع المراجع", Icons.Default.Favorite)
-        Text("سيتم نشر الأذكار بعد مراجعة النصوص والمراجع، دون نسبة نص غير موثّق.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+        PageHeader("الأذكار والأدعية", "مساحة للذكر مع عدّاد شخصي")
+        Surface(color = Navy, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Text("العدّاد الشخصي", color = Gold, fontWeight = FontWeight.Bold)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    phrases.forEachIndexed { index, phrase ->
+                        FilterChip(selected = selected == index, onClick = { selected = index; prefs.edit().putInt("tasbih_phrase", index).apply() }, label = { Text(phrase) })
+                    }
+                }
+                Text(phrases[selected], color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text(count.toString(), color = Gold, fontSize = 48.sp, fontWeight = FontWeight.Light)
+                Button(onClick = { count += 1; prefs.edit().putInt("tasbih_count", count).apply() }, colors = ButtonDefaults.buttonColors(containerColor = Gold, contentColor = Navy), modifier = Modifier.fillMaxWidth()) { Text("تسبيحة", fontSize = 18.sp) }
+                OutlinedButton(onClick = { count = 0; prefs.edit().putInt("tasbih_count", 0).apply() }) { Text("تصفير العدّاد", color = Color.White) }
+            }
+        }
+        Text("الأذكار المأثورة", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        FeatureTile("أذكار الصباح", "سيتم إضافة النصوص مع تخريجها ومراجعها", Icons.Default.WbSunny)
+        FeatureTile("أذكار المساء", "سيتم إضافة النصوص مع تخريجها ومراجعها", Icons.Default.DarkMode)
+        FeatureTile("أذكار بعد الصلاة", "سيتم إضافة النصوص بعد مراجعة صحتها", Icons.Default.Favorite)
+        Text("العدّاد أداة شخصية، ولا يحدد عدداً شرعياً أو فضيلة مخصوصة.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
     }
 }
 
