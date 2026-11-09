@@ -301,6 +301,7 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf(false) }
     var surahMenu by remember { mutableStateOf(false) }
+    var readingFontScale by remember { mutableFloatStateOf(prefs.getFloat("quran_font_scale", 0.5f).coerceIn(0f, 1f)) }
     val dailyPages = kotlin.math.ceil(604.0 / targetDays).toInt()
     val progress = completedPages / 604f
 
@@ -397,6 +398,20 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+        Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("حجم خط القراءة", color = Navy, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(if (readingFontScale < 0.34f) "صغير" else if (readingFontScale > 0.67f) "كبير" else "متوسط", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
+                }
+                Slider(
+                    value = readingFontScale,
+                    onValueChange = { readingFontScale = it },
+                    onValueChangeFinished = { prefs.edit().putFloat("quran_font_scale", readingFontScale).apply() },
+                    valueRange = 0f..1f
+                )
+            }
+        }
         when {
             loading -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 CircularProgressIndicator(color = Gold, modifier = Modifier.size(24.dp))
@@ -464,7 +479,9 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                                 }
                                 Text(
                                     ayahText + "  ﴿" + ayahNumber + "﴾",
-                                    color = Color(0xFF33291F), fontSize = 22.sp, lineHeight = 42.sp,
+                                    color = Color(0xFF33291F),
+                                    fontSize = (19f + readingFontScale * 7f).sp,
+                                    lineHeight = (36f + readingFontScale * 10f).sp,
                                     textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth()
                                 )
                             }
