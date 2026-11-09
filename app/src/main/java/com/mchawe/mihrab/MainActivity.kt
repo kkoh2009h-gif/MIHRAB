@@ -1,6 +1,7 @@
 package com.mchawe.mihrab
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -149,7 +151,8 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun PrayerScreen(modifier: Modifier = Modifier) {
     val cities = listOf("كركوك", "بغداد", "الموصل", "أربيل", "السليمانية", "دهوك", "البصرة", "النجف", "كربلاء", "الأنبار")
-    var city by remember { mutableStateOf("كركوك") }
+    val context = LocalContext.current
+    var city by remember { mutableStateOf(context.getSharedPreferences("mihrab", Context.MODE_PRIVATE).getString("city", "كركوك") ?: "كركوك") }
     var expanded by remember { mutableStateOf(false) }
     PageColumn(modifier) {
         PageHeader("مواقيت الصلاة", "المواقيت الخاصة بمدينتك")
@@ -167,6 +170,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         cities.forEach { item ->
                             DropdownMenuItem(text = { Text(item) }, onClick = {
                                 city = item
+                                context.getSharedPreferences("mihrab", Context.MODE_PRIVATE).edit().putString("city", item).apply()
                                 expanded = false
                             })
                         }
