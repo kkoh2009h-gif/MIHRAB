@@ -61,6 +61,23 @@ jobs:
 
           Please check updates at: https://tanzil.net/updates/
           EOF
+      - name: Download authentic Madinah Mushaf page scans
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/Miftah-Fentaw/Quran-Images.git /tmp/quran-images
+          git -C /tmp/quran-images sparse-checkout set png
+          mkdir -p app/src/main/assets/mushaf_pages
+          cp /tmp/quran-images/png/*.png app/src/main/assets/mushaf_pages/
+          test "$(find app/src/main/assets/mushaf_pages -maxdepth 1 -name '*.png' | wc -l)" -eq 604
+          curl --fail --location --silent --show-error https://raw.githubusercontent.com/Miftah-Fentaw/Quran-Images/main/LICENSE -o app/src/main/assets/MUSHAF-IMAGES-LICENSE.txt
+          cat > app/src/main/assets/MUSHAF-IMAGES-SOURCE.txt <<'EOF'
+          Madinah Mushaf page images (604 pages)
+          Dataset: Quran Images by Miftah Fentaw
+          Repository: https://github.com/Miftah-Fentaw/Quran-Images
+          Dataset license: MIT (see MUSHAF-IMAGES-LICENSE.txt)
+          Original image source attribution: quran.com-images / Quran-PNG by GovarJabbar.
+          These page images are bundled for offline reading and are not altered.
+          EOF
+          echo "Prepared $(find app/src/main/assets/mushaf_pages -name '*.png' | wc -l) Mushaf pages"
       - name: Build debug APK
         run: gradle assembleDebug
       - name: Upload APK
