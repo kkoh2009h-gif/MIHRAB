@@ -523,7 +523,6 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
 
                 }
             }
-        }
 
         Text("خطة ختم القرآن", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
