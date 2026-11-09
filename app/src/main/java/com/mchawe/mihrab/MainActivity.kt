@@ -493,10 +493,60 @@ private fun DhikrCounterCard(
 
 @Composable
 private fun MoreScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var adhanMaster by remember { mutableStateOf(prefs.getBoolean("adhan_master", false)) }
+    var vibration by remember { mutableStateOf(prefs.getBoolean("adhan_vibration", true)) }
+    val prayerNames = listOf("الفجر", "الظهر", "العصر", "المغرب", "العشاء")
+    val prayerKeys = listOf("fajr", "dhuhr", "asr", "maghrib", "isha")
+    val enabled = prayerKeys.map { key ->
+        remember { mutableStateOf(prefs.getBoolean("adhan_$key", true)) }
+    }
     PageColumn(modifier) {
         PageHeader("المزيد", "إعدادات وأدوات مِحراب")
+        Text("إعدادات الأذان", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+        Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("تفعيل تنبيهات الأذان", color = Navy, fontWeight = FontWeight.Bold)
+                        Text("مفتاح عام لإعدادات التنبيه", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                    }
+                    Switch(checked = adhanMaster, onCheckedChange = {
+                        adhanMaster = it
+                        prefs.edit().putBoolean("adhan_master", it).apply()
+                    })
+                }
+                Divider(color = Cream)
+                prayerNames.forEachIndexed { index, name ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(name, color = Navy, fontWeight = FontWeight.SemiBold)
+                        Switch(checked = enabled[index].value, onCheckedChange = {
+                            enabled[index].value = it
+                            prefs.edit().putBoolean("adhan_${prayerKeys[index]}", it).apply()
+                        })
+                    }
+                }
+                Divider(color = Cream)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("الاهتزاز", color = Navy, fontWeight = FontWeight.SemiBold)
+                        Text("تفضيل محفوظ محلياً", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                    }
+                    Switch(checked = vibration, onCheckedChange = {
+                        vibration = it
+                        prefs.edit().putBoolean("adhan_vibration", it).apply()
+                    })
+                }
+            }
+        }
+        Surface(color = Gold.copy(alpha = .14f), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "تنبيه مهم: هذه إعدادات محفوظة على جهازك فقط. تشغيل الأذان والتنبيهات بالخلفية غير مفعّل حالياً؛ لن نصدر تنبيهاً اعتماداً على أوقات غير موثقة.",
+                color = Navy, fontSize = 12.sp, lineHeight = 20.sp, modifier = Modifier.padding(14.dp)
+            )
+        }
         FeatureTile("التقويم الهجري", "التاريخ الهجري والمناسبات الثابتة", Icons.Default.CalendarMonth)
-        FeatureTile("التنبيهات والأذان", "إعدادات التنبيه والصوت لكل صلاة", Icons.Default.Notifications)
         FeatureTile("الإعدادات", "المظهر واللغة والموقع وطريقة عرض الوقت", Icons.Default.Settings)
         Text("مِحراب — تطبيق عربي يحترم خصوصيتك ويعمل دون خدمات سحابية مدفوعة.", color = Ink.copy(alpha = .65f), fontSize = 12.sp)
     }
