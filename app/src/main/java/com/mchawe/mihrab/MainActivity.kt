@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -400,18 +403,49 @@ private fun QuranScreen(modifier: Modifier = Modifier) {
                             Text(selectedSurah.ayat.size.toString() + " آية", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
                         }
                     }
-                    Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+                    Surface(
+                        color = Color(0xFFFFFDF5),
+                        shape = RoundedCornerShape(5.dp),
+                        border = BorderStroke(1.dp, Gold.copy(alpha = .75f)),
+                        modifier = Modifier.fillMaxWidth()
+                            .pointerInput(currentPage) {
+                                var drag = 0f
+                                detectHorizontalDragGestures(
+                                    onHorizontalDrag = { _, amount -> drag += amount },
+                                    onDragEnd = {
+                                        if (drag < -45f && currentPage < 604) {
+                                            currentPage += 1
+                                            prefs.edit().putInt("quran_current_page", currentPage).apply()
+                                        } else if (drag > 45f && currentPage > 1) {
+                                            currentPage -= 1
+                                            prefs.edit().putInt("quran_current_page", currentPage).apply()
+                                        }
+                                        drag = 0f
+                                    }
+                                )
+                            }
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("۞  الْمُصْحَفُ الشَّرِيف  ۞", color = Gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Divider(color = Gold.copy(alpha = .65f))
+                            Text("سُورَةُ " + arabicSurahNames[surahIndex - 1], color = Navy, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             selectedSurah.ayat.forEach { ayah ->
                                 Text(
-                                    ayah.text + "  ۞" + ayah.number,
-                                    color = Navy, fontSize = 23.sp, lineHeight = 43.sp,
+                                    ayah.text + "  ﴿" + ayah.number + "﴾",
+                                    color = Color(0xFF33291F), fontSize = 22.sp, lineHeight = 42.sp,
                                     textAlign = TextAlign.Justify, modifier = Modifier.fillMaxWidth()
                                 )
-                                Divider(color = Cream)
                             }
+                            Divider(color = Gold.copy(alpha = .65f))
+                            Text("—  $currentPage  —", color = Navy, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("اسحب أفقياً للتنقل بين أرقام الصفحات", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
                         }
                     }
+                    Text("تنسيق ورقي أولي. ربط كل آية بموضعها الدقيق ضمن صفحات مصحف المدينة الـ604 يحتاج ملف فهرسة صفحات موثوقاً؛ لم نُنشئ توزيعاً تخمينياً للآيات.", color = Ink.copy(alpha = .7f), fontSize = 11.sp, lineHeight = 18.sp)
                     Text("المصدر: Tanzil Uthmani 1.1. النص معروض كما ورد في المصدر.", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
                 }
             }
