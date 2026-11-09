@@ -174,7 +174,13 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PrayerScreen(modifier: Modifier = Modifier) {
-    val cities = listOf("كركوك", "بغداد", "الموصل", "أربيل", "السليمانية", "دهوك", "البصرة", "النجف", "كربلاء", "الأنبار")
+    // Iraqi governorate centers; schedules are marked automatic only when verified city data exists.
+    val cities = listOf(
+        "بغداد", "البصرة", "نينوى - الموصل", "أربيل", "السليمانية", "دهوك",
+        "كركوك", "النجف", "كربلاء", "الأنبار - الرمادي", "بابل - الحلة",
+        "واسط - الكوت", "ذي قار - الناصرية", "ميسان - العمارة", "المثنى - السماوة",
+        "صلاح الدين - تكريت", "القادسية - الديوانية", "ديالى - بعقوبة", "حلبجة"
+    )
     val prayerNames = listOf("الفجر", "الشروق", "الظهر", "العصر", "المغرب", "العشاء")
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
@@ -198,7 +204,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("انقل الأوقات كما تظهر في جدول الديوان الرسمي لمدينة $city بتاريخ $dateKey. لا تدخل أوقاتاً تقديرية.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
+                    Text("أدخل الأوقات المنشورة في جدول الجهة الرسمية لمدينة $city بتاريخ $dateKey. لا تدخل أوقاتاً تقديرية.", color = Ink.copy(alpha = .75f), fontSize = 12.sp)
                     prayerNames.forEachIndexed { index, prayer ->
                         OutlinedTextField(
                             value = editTimes[index],
@@ -228,7 +234,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     }
 
     PageColumn(modifier) {
-        PageHeader("مواقيت الصلاة", "مواقيت اليوم حسب المدينة المحددة")
+        PageHeader("مواقيت الصلاة", "اختر محافظتك لعرض جدول الصلاة")
         Surface(color = Navy, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("المدينة المحددة", color = Gold, fontWeight = FontWeight.Bold)
@@ -249,7 +255,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
-                Text("المصدر الرسمي للمراجعة: ديوان الوقف السني العراقي.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
+                Text("المصدر الرسمي للتحقق: ديوان الوقف السني العراقي. لا تُعرض الأوقات غير الموثقة على أنها رسمية.", color = Color.White.copy(alpha = .85f), fontSize = 12.sp)
                 OutlinedButton(onClick = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/")))
                 }) {
