@@ -52,10 +52,10 @@ import java.time.temporal.ChronoField
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val Navy = Color(0xFF101F35)
-private val Gold = Color(0xFFC8A96A)
-private val Cream = Color(0xFFF6F2E9)
-private val Ink = Color(0xFF1C2A3A)
+private var Navy by mutableStateOf(Color(0xFF101F35))
+private var Gold by mutableStateOf(Color(0xFFC8A96A))
+private var Cream by mutableStateOf(Color(0xFFF6F2E9))
+private var Ink by mutableStateOf(Color(0xFF1C2A3A))
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,6 +68,14 @@ class MainActivity : ComponentActivity() {
 private fun MihrabApp() {
     var selected by remember { mutableIntStateOf(0) }
     var quranFullscreen by remember { mutableStateOf(false) }
+    val appPrefs = remember { getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    var darkMode by remember { mutableStateOf(appPrefs.getBoolean("dark_mode", false)) }
+    LaunchedEffect(darkMode) {
+        Navy = if (darkMode) Color(0xFFE8EAF0) else Color(0xFF101F35)
+        Gold = Color(0xFFC8A96A)
+        Cream = if (darkMode) Color(0xFF10141C) else Color(0xFFF6F2E9)
+        Ink = if (darkMode) Color(0xFFE1E5EC) else Color(0xFF1C2A3A)
+    }
     val labels = listOf("الرئيسية", "الصلاة", "القرآن", "الأذكار", "المزيد")
     val icons = listOf(
         Icons.Default.Home,
@@ -77,13 +85,16 @@ private fun MihrabApp() {
         Icons.Default.MoreHoriz
     )
 
-    MaterialTheme(colorScheme = lightColorScheme(
+    MaterialTheme(colorScheme = if (darkMode) darkColorScheme(
+        primary = Gold, secondary = Gold, background = Cream, surface = Color(0xFF202733),
+        onBackground = Ink, onSurface = Ink
+    ) else lightColorScheme(
         primary = Navy, secondary = Gold, background = Cream, surface = Color.White
     )) {
         Scaffold(
             containerColor = Cream,
             bottomBar = {
-                if (!quranFullscreen) NavigationBar(containerColor = Color.White) {
+                if (!quranFullscreen) NavigationBar(containerColor = if (darkMode) Color(0xFF202733) else Color.White) {
                     labels.forEachIndexed { index, label ->
                         NavigationBarItem(
                             selected = selected == index,
@@ -100,7 +111,7 @@ private fun MihrabApp() {
                 1 -> PrayerScreen(Modifier.padding(padding))
                 2 -> QuranScreen(modifier = if (quranFullscreen) Modifier else Modifier.padding(padding), isFullscreen = quranFullscreen, onFullscreenChange = { quranFullscreen = it })
                 3 -> AdhkarScreen(Modifier.padding(padding))
-                else -> MoreScreen(Modifier.padding(padding))
+                else -> MoreScreen(Modifier.padding(padding), darkMode = darkMode, onDarkModeChange = { darkMode = it; appPrefs.edit().putBoolean("dark_mode", it).apply() })
             }
         }
     }
@@ -852,7 +863,7 @@ private fun DhikrCounterCard(
 }
 
 @Composable
-private fun MoreScreen(modifier: Modifier = Modifier) {
+private fun MoreScreen(modifier: Modifier = Modifier, darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var adhanMaster by remember { mutableStateOf(prefs.getBoolean("adhan_master", false)) }
@@ -864,6 +875,15 @@ private fun MoreScreen(modifier: Modifier = Modifier) {
     }
     PageColumn(modifier) {
         PageHeader("المزيد", "إعدادات وأدوات مِحراب")
+        Surface(color = if (darkMode) Color(0xFF202733) else Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("مظهر التطبيق", color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(if (darkMode) "المظهر الداكن مفعّل" else "المظهر الأبيض مفعّل", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+                }
+                Switch(checked = darkMode, onCheckedChange = onDarkModeChange)
+            }
+        }
         Text("اختيار صوت الأذان", color = Navy, fontSize = 19.sp, fontWeight = FontWeight.Bold)
         val soundOptions = listOf("الصوت الافتراضي", "أذان مكة", "أذان المدينة", "أذان هادئ")
         var selectedSound by remember { mutableIntStateOf(prefs.getInt("adhan_sound", 0).coerceIn(0, soundOptions.lastIndex)) }
