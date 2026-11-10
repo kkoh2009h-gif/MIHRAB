@@ -626,7 +626,7 @@ private fun QuranScreen(
                     Icon(Icons.Default.Fullscreen, contentDescription = "ملء الشاشة", tint = Navy)
                 }
             }
-            Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Surface(color = CardSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("الصفحات الأصلية للمصحف، بنفس ترتيب الآيات وتوزيع الأسطر والزخارف. تُحفظ داخل التطبيق للقراءة دون إنترنت.", color = Ink.copy(alpha = .75f), fontSize = 13.sp, lineHeight = 20.sp)
                     Text("اختر السورة", color = Navy, fontWeight = FontWeight.Bold)
@@ -691,7 +691,7 @@ private fun QuranScreen(
                     Text("السابقة")
                 }
                 Text("$currentPage / 604", color = Navy, fontWeight = FontWeight.Bold)
-                Button(onClick = { currentPage = (currentPage + 1).coerceAtMost(604); prefs.edit().putInt("quran_current_page", currentPage).apply() }, enabled = currentPage < 604, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                Button(onClick = { currentPage = (currentPage + 1).coerceAtMost(604); prefs.edit().putInt("quran_current_page", currentPage).apply() }, enabled = currentPage < 604, colors = ButtonDefaults.buttonColors(containerColor = PanelBackground)) {
                     Text("التالية")
                     Icon(Icons.Default.ChevronLeft, null)
                 }
