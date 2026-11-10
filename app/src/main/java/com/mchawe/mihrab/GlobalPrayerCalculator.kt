@@ -27,7 +27,6 @@ object GlobalPrayerCalculator {
         KUWAIT("الكويت", CalculationMethod.KUWAIT),
         SINGAPORE("سنغافورة", CalculationMethod.SINGAPORE),
         NORTH_AMERICA("أمريكا الشمالية (ISNA)", CalculationMethod.NORTH_AMERICA),
-        TEHRAN("معهد الجيوفيزياء - طهران", CalculationMethod.TEHRAN),
         MOON_SIGHTING("لجنة رؤية الهلال", CalculationMethod.MOON_SIGHTING_COMMITTEE)
     }
 
