@@ -28,7 +28,7 @@ object GlobalPrayerCalculator {
         SINGAPORE("سنغافورة", CalculationMethod.SINGAPORE),
         NORTH_AMERICA("أمريكا الشمالية (ISNA)", CalculationMethod.NORTH_AMERICA),
         TURKEY("تركيا - ديانت", CalculationMethod.TURKEY),
-        MOON_SIGHTING("لجنة رؤية الهلال", CalculationMethod.MOON_SIGHTING_COMMITTEE)
+        MOON_SIGHTING("لجنة رؤية الهلال", CalculationMethod.MOONSIGHTING_COMMITTEE)
     }
 
     enum class AsrMethod(val title: String, val madhab: Madhab) {
