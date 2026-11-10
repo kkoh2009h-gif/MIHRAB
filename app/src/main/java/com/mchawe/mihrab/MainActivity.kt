@@ -939,91 +939,75 @@ private fun MoreScreen(modifier: Modifier = Modifier) {
     }
 }
 
+
 @Composable
 private fun DonationSection() {
-    val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
-    var receivedInput by remember { mutableStateOf("") }
-    var distributedInput by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var receivedTotal by remember { mutableLongStateOf(prefs.getLong("donation_received_total", 0L)) }
-    var distributedTotal by remember { mutableLongStateOf(prefs.getLong("donation_distributed_total", 0L)) }
-    var history by remember { mutableStateOf(prefs.getString("donation_history", "") ?: "") }
+    var amountText by remember { mutableStateOf("1000") }
+    var showPaymentInfo by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
+    val quickAmounts = listOf(1000, 5000, 10000, 25000)
 
-    fun record(isReceived: Boolean) {
-        val raw = if (isReceived) receivedInput else distributedInput
-        val amount = raw.toLongOrNull()
-        if (amount == null || amount <= 0L) {
-            error = "أدخل مبلغاً صحيحاً بالدينار العراقي."
-            return
-        }
-        if (!isReceived && amount > (receivedTotal - distributedTotal)) {
-            error = "مبلغ التوزيع أكبر من الرصيد المسجل للاستلام."
-            return
-        }
-        val label = if (isReceived) "استلام مسجل يدوياً" else "توزيع مسجل يدوياً"
-        val detail = note.trim().ifBlank { if (isReceived) "تبرع" else "مساعدة لمحتاج" }.replace("\n", " ").take(70)
-        val line = "${java.time.LocalDate.now()} | $label | $amount د.ع | $detail"
-        history = (line + if (history.isBlank()) "" else "\n$history").lines().take(20).joinToString("\n")
-        if (isReceived) {
-            receivedTotal += amount
-            receivedInput = ""
-            prefs.edit().putLong("donation_received_total", receivedTotal).apply()
-        } else {
-            distributedTotal += amount
-            distributedInput = ""
-            prefs.edit().putLong("donation_distributed_total", distributedTotal).apply()
-        }
-        prefs.edit().putString("donation_history", history).apply()
-        note = ""
-        error = ""
-    }
-
-    Surface(color = Color.White, shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Gold, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text("ساهم في تفريج كربة محتاج", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("سجل شخصي للتبرعات والمساعدات", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+    Surface(color = Color.White, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
+            Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Gold, modifier = Modifier.size(34.dp))
+                    Text("كن سبباً في فرحة محتاج", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                    Text("مساهمتك قد تساعد عائلة محتاجة وتخفف عنها.", color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 21.sp)
                 }
             }
-            Text("هذا القسم لإدارة سجلّك الشخصي فقط. أنت تستقبل المبالغ وتوزعها بنفسك، ولست جمعية أو جهة خيرية مسجلة. لا يوفر التطبيق حالياً دفعاً إلكترونياً ولا يتحقق من التحويلات.", color = Ink, fontSize = 12.sp, lineHeight = 19.sp)
+            Text("اختر مبلغ التبرع أو اكتب المبلغ الذي يناسبك", color = Navy, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(color = Cream, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("المبالغ المستلمة", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
-                        Text("%,d د.ع".format(Locale.US, receivedTotal), color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                }
-                Surface(color = Cream, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f)) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text("المبالغ الموزعة", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
-                        Text("%,d د.ع".format(Locale.US, distributedTotal), color = Navy, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
+                quickAmounts.take(2).forEach { amount ->
+                    FilterChip(selected = amountText == amount.toString(), onClick = { amountText = amount.toString(); error = "" }, label = { Text("%,d د.ع".format(Locale.US, amount)) }, modifier = Modifier.weight(1f))
                 }
             }
-            Surface(color = Gold.copy(alpha = .13f), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp)) {
-                    Text("الرصيد المتبقي حسب السجل", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
-                    Text("%,d د.ع".format(Locale.US, receivedTotal - distributedTotal), color = Navy, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                quickAmounts.drop(2).forEach { amount ->
+                    FilterChip(selected = amountText == amount.toString(), onClick = { amountText = amount.toString(); error = "" }, label = { Text("%,d د.ع".format(Locale.US, amount)) }, modifier = Modifier.weight(1f))
                 }
             }
-            OutlinedTextField(value = receivedInput, onValueChange = { receivedInput = it.filter(Char::isDigit).take(12); error = "" }, label = { Text("مبلغ استلام مسجل يدوياً (د.ع)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
-            Button(onClick = { record(true) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Navy)) { Text("إضافة إلى سجل المبالغ المستلمة") }
-            OutlinedTextField(value = distributedInput, onValueChange = { distributedInput = it.filter(Char::isDigit).take(12); error = "" }, label = { Text("مبلغ المساعدة الموزعة (د.ع)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = note, onValueChange = { note = it.take(70) }, label = { Text("ملاحظة مختصرة (اختياري)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedButton(onClick = { record(false) }, modifier = Modifier.fillMaxWidth()) { Text("تسجيل مبلغ تم توزيعه") }
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { amountText = it.filter(Char::isDigit).take(10); error = "" },
+                label = { Text("مبلغك بالدينار العراقي") },
+                leadingIcon = { Icon(Icons.Default.Payments, contentDescription = null) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text("تبرع بالمبلغ الذي تقدر عليه، حتى لو 1,000 دينار.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+            Button(
+                onClick = {
+                    val amount = amountText.toLongOrNull()
+                    error = when {
+                        amount == null -> "اكتب مبلغاً صحيحاً."
+                        amount < 1000L -> "أقل مبلغ للتبرع هو 1,000 دينار."
+                        else -> ""
+                    }
+                    if (error.isBlank()) showPaymentInfo = true
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Navy)
+            ) {
+                Icon(Icons.Default.Favorite, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("ساهم الآن")
+            }
             if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-            if (history.isNotBlank()) {
-                Divider(color = Cream)
-                Text("آخر العمليات المسجلة", color = Navy, fontWeight = FontWeight.Bold)
-                history.lines().take(8).forEach { entry -> Text(entry, color = Ink.copy(alpha = .8f), fontSize = 11.sp, lineHeight = 17.sp) }
-                Text("السجل محفوظ محلياً على هذا الجهاز فقط، ولا يمثل إثباتاً مصرفياً أو إيصالاً رسمياً.", color = Ink.copy(alpha = .55f), fontSize = 10.sp)
-            }
+            Text("التبرع اختياري وبالمبلغ الذي تختاره. تتم إدارة المساعدات وتوزيعها شخصياً، ولا يمثل هذا القسم جمعية خيرية مسجلة.", color = Ink.copy(alpha = .65f), fontSize = 11.sp, lineHeight = 18.sp)
         }
+    }
+    if (showPaymentInfo) {
+        val amount = amountText.toLongOrNull() ?: 0L
+        AlertDialog(
+            onDismissRequest = { showPaymentInfo = false },
+            title = { Text("شكراً لرغبتك بالمساعدة") },
+            text = {
+                Text("المبلغ المختار: %,d دينار عراقي. الدفع الإلكتروني لم يُفعّل بعد؛ لن يتم خصم أي مبلغ الآن. ستظهر هنا بوابة دفع آمنة بعد اعتماد مزوّد يقبل هذا النوع من التبرعات.".format(Locale.US, amount))
+            },
+            confirmButton = { TextButton(onClick = { showPaymentInfo = false }) { Text("حسناً") } }
+        )
     }
 }
 
