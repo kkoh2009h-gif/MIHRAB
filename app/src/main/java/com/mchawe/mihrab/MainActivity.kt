@@ -187,6 +187,10 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var city by remember { mutableStateOf(prefs.getString("city", "كركوك") ?: "كركوك") }
+    var selectedMethod by remember { mutableStateOf(GlobalPrayerCalculator.Method.valueOf(prefs.getString("global_method", GlobalPrayerCalculator.Method.MUSLIM_WORLD_LEAGUE.name) ?: GlobalPrayerCalculator.Method.MUSLIM_WORLD_LEAGUE.name)) }
+    var selectedAsr by remember { mutableStateOf(GlobalPrayerCalculator.AsrMethod.valueOf(prefs.getString("asr_method", GlobalPrayerCalculator.AsrMethod.SHAFII.name) ?: GlobalPrayerCalculator.AsrMethod.SHAFII.name)) }
+    var methodExpanded by remember { mutableStateOf(false) }
+    var asrExpanded by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf("لم يتم تحديد الموقع بعد") }
     var locating by remember { mutableStateOf(false) }
     val date = java.time.LocalDate.now()
@@ -195,7 +199,14 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     var manualTimes by remember(city, dateKey) {
         mutableStateOf(prayerNames.mapIndexed { index, _ -> prefs.getString("${storageKey}_${index}", "") ?: "" })
     }
-    val calculated = remember(city, dateKey) { IraqiPrayerCalculator.calculate(city, date) }
+    val savedLatitude = prefs.getFloat("last_latitude", Float.NaN).toDouble()
+    val savedLongitude = prefs.getFloat("last_longitude", Float.NaN).toDouble()
+    val selectedCity = cities.firstOrNull { it.name == city }
+    val latitude = if (savedLatitude.isFinite()) savedLatitude else selectedCity?.latitude ?: 35.4681
+    val longitude = if (savedLongitude.isFinite()) savedLongitude else selectedCity?.longitude ?: 44.3922
+    val calculated = remember(latitude, longitude, dateKey, selectedMethod, selectedAsr) {
+        GlobalPrayerCalculator.calculate(latitude, longitude, date, java.time.ZoneId.systemDefault().id, selectedMethod, selectedAsr)
+    }
     val calculatedList = calculated?.let { listOf(it.fajr, it.sunrise, it.dhuhr, it.asr, it.maghrib, it.isha) }
     val displayedTimes = manualTimes.mapIndexed { index, value -> value.ifBlank { calculatedList?.get(index) ?: "" } }
     var expanded by remember { mutableStateOf(false) }
@@ -209,13 +220,14 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
             result[0]
         }
         if (nearest != null) {
-            city = nearest.name
-            prefs.edit().putString("city", nearest.name)
-                .putFloat("last_latitude", location.latitude.toFloat())
-                .putFloat("last_longitude", location.longitude.toFloat()).apply()
             val distance = FloatArray(1)
             Location.distanceBetween(location.latitude, location.longitude, nearest.latitude, nearest.longitude, distance)
-            locationMessage = "تم تحديد الموقع؛ أقرب مركز محافظة: ${nearest.name} (حوالي ${(distance[0] / 1000).toInt()} كم)"
+            val placeLabel = if (distance[0] <= 50000f) nearest.name else "موقعك الحالي"
+            city = placeLabel
+            prefs.edit().putString("city", placeLabel)
+                .putFloat("last_latitude", location.latitude.toFloat())
+                .putFloat("last_longitude", location.longitude.toFloat()).apply()
+            locationMessage = "تم تحديد إحداثيات موقعك بدقة واستخدامها مباشرة في حساب المواقيت. المنطقة الزمنية: ${java.time.ZoneId.systemDefault().id}"
         }
         locating = false
     }
@@ -335,14 +347,42 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         cities.forEach { item ->
                             DropdownMenuItem(text = { Text(item.name) }, onClick = {
                                 city = item.name
-                                prefs.edit().putString("city", item.name).apply()
+                                prefs.edit().remove("last_latitude").remove("last_longitude").putString("city", item.name).apply()
                                 locationMessage = "تم اختيار المحافظة يدوياً"
                                 expanded = false
                             })
                         }
                     }
                 }
-                Text("الموقع يُستخدم داخل الجهاز لاختيار أقرب مركز محافظة، ولا يُرسل إلى أي خادم.", color = Color.White.copy(alpha = .78f), fontSize = 11.sp)
+                Text("يُحسب الوقت من إحداثيات موقعك الفعلية والمنطقة الزمنية للهاتف. لا تُرسل الإحداثيات إلى أي خادم.", color = Color.White.copy(alpha = .78f), fontSize = 11.sp)
+                Box {
+                    OutlinedButton(onClick = { methodExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("طريقة الحساب: ${selectedMethod.title}")
+                    }
+                    DropdownMenu(expanded = methodExpanded, onDismissRequest = { methodExpanded = false }) {
+                        GlobalPrayerCalculator.Method.values().forEach { item ->
+                            DropdownMenuItem(text = { Text(item.title) }, onClick = {
+                                selectedMethod = item
+                                prefs.edit().putString("global_method", item.name).apply()
+                                methodExpanded = false
+                            })
+                        }
+                    }
+                }
+                Box {
+                    OutlinedButton(onClick = { asrExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("حساب العصر: ${selectedAsr.title}")
+                    }
+                    DropdownMenu(expanded = asrExpanded, onDismissRequest = { asrExpanded = false }) {
+                        GlobalPrayerCalculator.AsrMethod.values().forEach { item ->
+                            DropdownMenuItem(text = { Text(item.title) }, onClick = {
+                                selectedAsr = item
+                                prefs.edit().putString("asr_method", item.name).apply()
+                                asrExpanded = false
+                            })
+                        }
+                    }
+                }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -363,8 +403,8 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
             }
         }
         Text(
-            if (manualTimes.any { it.isNotBlank() }) "الأوقات التي أدخلتها يدوياً تظهر بدلاً من الحساب. بقية الأوقات حساب فلكي تقريبي غير رسمي، وليست جدول الوقف السني."
-            else "الأوقات المعروضة حساب فلكي تقريبي غير رسمي باستخدام مركز المحافظة. راجع جدول الوقف السني قبل اعتمادها للصلاة.",
+            if (manualTimes.any { it.isNotBlank() }) "الأوقات التي أدخلتها يدوياً تظهر بدلاً من الحساب. بقية الأوقات محسوبة فلكياً وليست جدولاً رسمياً محلياً."
+            else "الأوقات المعروضة محسوبة فلكياً دون اتصال باستخدام إحداثيات الموقع وطريقة الحساب المختارة، وليست جدولاً رسمياً للجهة الدينية المحلية. اعتمد توقيت مسجدك أو الجهة الرسمية في بلدك عند توفره.",
             color = Ink.copy(alpha = .7f), fontSize = 12.sp, lineHeight = 19.sp
         )
         TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://dws.gov.iq/"))) }) {
