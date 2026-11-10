@@ -942,75 +942,39 @@ private fun MoreScreen(modifier: Modifier = Modifier) {
 
 @Composable
 private fun DonationSection() {
+    val context = LocalContext.current
     var amountText by remember { mutableStateOf("1000") }
-    var showPaymentInfo by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val quickAmounts = listOf(1000, 5000, 10000, 25000)
-
+    val whatsappNumber = "9647709914494"
     Surface(color = Color.White, shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
             Surface(color = Navy, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Default.VolunteerActivism, contentDescription = null, tint = Gold, modifier = Modifier.size(34.dp))
                     Text("كن سبباً في فرحة محتاج", color = Gold, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    Text("مساهمتك قد تساعد عائلة محتاجة وتخفف عنها.", color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 21.sp)
+                    Text("ساهم بالمبلغ الذي يناسبك، وكل مساهمة تصنع فرقاً.", color = Color.White, fontSize = 13.sp, textAlign = TextAlign.Center)
                 }
             }
-            Text("اختر مبلغ التبرع أو اكتب المبلغ الذي يناسبك", color = Navy, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                quickAmounts.take(2).forEach { amount ->
-                    FilterChip(selected = amountText == amount.toString(), onClick = { amountText = amount.toString(); error = "" }, label = { Text("%,d د.ع".format(Locale.US, amount)) }, modifier = Modifier.weight(1f))
+            Text("كم تحب تساهم؟", color = Navy, fontWeight = FontWeight.Bold)
+            quickAmounts.chunked(2).forEach { group -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { group.forEach { value -> FilterChip(selected = amountText == value.toString(), onClick = { amountText = value.toString(); error = "" }, label = { Text("$value د.ع") }, modifier = Modifier.weight(1f)) }; if (group.size == 1) Spacer(Modifier.weight(1f)) } }
+            OutlinedTextField(value = amountText, onValueChange = { amountText = it.filter(Char::isDigit).take(10); error = "" }, label = { Text("مبلغ التبرع بالدينار العراقي") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
+            Text("تگدر تساهم حتى بـ 1,000 دينار أو بأي مبلغ يناسبك.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+            Button(onClick = {
+                val selected = amountText.toLongOrNull()
+                if (selected == null || selected < 1000L) error = "أقل مساهمة 1,000 دينار." else {
+                    val message = "السلام عليكم، أريد أساهم بمساعدة المحتاجين بمبلغ " + selected + " دينار عراقي. شلون أگدر أتبرع؟"
+                    val uri = Uri.parse("https://wa.me/" + whatsappNumber + "?text=" + java.net.URLEncoder.encode(message, "UTF-8"))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, uri))
                 }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                quickAmounts.drop(2).forEach { amount ->
-                    FilterChip(selected = amountText == amount.toString(), onClick = { amountText = amount.toString(); error = "" }, label = { Text("%,d د.ع".format(Locale.US, amount)) }, modifier = Modifier.weight(1f))
-                }
-            }
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = { amountText = it.filter(Char::isDigit).take(10); error = "" },
-                label = { Text("مبلغك بالدينار العراقي") },
-                leadingIcon = { Icon(Icons.Default.Payments, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text("تبرع بالمبلغ الذي تقدر عليه، حتى لو 1,000 دينار.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
-            Button(
-                onClick = {
-                    val amount = amountText.toLongOrNull()
-                    error = when {
-                        amount == null -> "اكتب مبلغاً صحيحاً."
-                        amount < 1000L -> "أقل مبلغ للتبرع هو 1,000 دينار."
-                        else -> ""
-                    }
-                    if (error.isBlank()) showPaymentInfo = true
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Navy)
-            ) {
-                Icon(Icons.Default.Favorite, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("ساهم الآن")
+            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+                Icon(Icons.Default.Favorite, contentDescription = null); Spacer(Modifier.width(8.dp)); Text("ساهم الآن عبر واتساب")
             }
             if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-            Text("التبرع اختياري وبالمبلغ الذي تختاره. تتم إدارة المساعدات وتوزيعها شخصياً، ولا يمثل هذا القسم جمعية خيرية مسجلة.", color = Ink.copy(alpha = .65f), fontSize = 11.sp, lineHeight = 18.sp)
+            Text("سيتم التواصل معك عبر واتساب لتنسيق المساهمة. التحويل لا يتم داخل التطبيق. تُدار المساعدات وتوزع شخصياً، ولسنا جمعية خيرية مسجلة.", color = Ink.copy(alpha = .65f), fontSize = 11.sp, lineHeight = 18.sp)
         }
     }
-    if (showPaymentInfo) {
-        val amount = amountText.toLongOrNull() ?: 0L
-        AlertDialog(
-            onDismissRequest = { showPaymentInfo = false },
-            title = { Text("شكراً لرغبتك بالمساعدة") },
-            text = {
-                Text("المبلغ المختار: %,d دينار عراقي. الدفع الإلكتروني لم يُفعّل بعد؛ لن يتم خصم أي مبلغ الآن. ستظهر هنا بوابة دفع آمنة بعد اعتماد مزوّد يقبل هذا النوع من التبرعات.".format(Locale.US, amount))
-            },
-            confirmButton = { TextButton(onClick = { showPaymentInfo = false }) { Text("حسناً") } }
-        )
-    }
 }
-
 @Composable
 private fun FeatureTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Surface(color = Color.White, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
