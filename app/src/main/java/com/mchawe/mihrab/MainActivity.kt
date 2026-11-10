@@ -226,6 +226,9 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     }
     val calculatedList = calculated?.let { listOf(it.fajr, it.sunrise, it.dhuhr, it.asr, it.maghrib, it.isha) }
     val displayedTimes = manualTimes.mapIndexed { index, value -> value.ifBlank { calculatedList?.get(index) ?: "" } }
+    LaunchedEffect(adhanEnabled, latitude, longitude, selectedZoneId, selectedMethod, selectedAsr) {
+        if (adhanEnabled) PrayerAlarmScheduler.schedule(context)
+    }
     var expanded by remember { mutableStateOf(false) }
     var showEntry by remember { mutableStateOf(false) }
     var editTimes by remember { mutableStateOf(manualTimes) }
