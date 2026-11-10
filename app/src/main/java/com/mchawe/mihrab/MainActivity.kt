@@ -187,6 +187,10 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var city by remember { mutableStateOf(prefs.getString("city", "كركوك") ?: "كركوك") }
+    var selectedZoneId by remember { mutableStateOf(prefs.getString("selected_zone", java.time.ZoneId.systemDefault().id) ?: java.time.ZoneId.systemDefault().id) }
+    var showGlobalCityPicker by remember { mutableStateOf(false) }
+    var globalCityQuery by remember { mutableStateOf("") }
+    var globalCityResults by remember { mutableStateOf<List<GlobalCityCatalog.City>>(emptyList()) }
     var selectedMethod by remember { mutableStateOf(GlobalPrayerCalculator.Method.valueOf(prefs.getString("global_method", GlobalPrayerCalculator.Method.MUSLIM_WORLD_LEAGUE.name) ?: GlobalPrayerCalculator.Method.MUSLIM_WORLD_LEAGUE.name)) }
     var selectedAsr by remember { mutableStateOf(GlobalPrayerCalculator.AsrMethod.valueOf(prefs.getString("asr_method", GlobalPrayerCalculator.AsrMethod.SHAFII.name) ?: GlobalPrayerCalculator.AsrMethod.SHAFII.name)) }
     var methodExpanded by remember { mutableStateOf(false) }
@@ -204,8 +208,13 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     val selectedCity = cities.firstOrNull { it.name == city }
     val latitude = if (savedLatitude.isFinite()) savedLatitude else selectedCity?.latitude ?: 35.4681
     val longitude = if (savedLongitude.isFinite()) savedLongitude else selectedCity?.longitude ?: 44.3922
-    val calculated = remember(latitude, longitude, dateKey, selectedMethod, selectedAsr) {
-        GlobalPrayerCalculator.calculate(latitude, longitude, date, java.time.ZoneId.systemDefault().id, selectedMethod, selectedAsr)
+    val calculated = remember(latitude, longitude, dateKey, selectedZoneId, selectedMethod, selectedAsr) {
+        GlobalPrayerCalculator.calculate(latitude, longitude, date, selectedZoneId, selectedMethod, selectedAsr)
+    }
+    LaunchedEffect(showGlobalCityPicker, globalCityQuery) {
+        if (showGlobalCityPicker && globalCityQuery.trim().length >= 2) {
+            globalCityResults = withContext(Dispatchers.IO) { GlobalCityCatalog.search(context, globalCityQuery, 80) }
+        } else globalCityResults = emptyList()
     }
     val calculatedList = calculated?.let { listOf(it.fajr, it.sunrise, it.dhuhr, it.asr, it.maghrib, it.isha) }
     val displayedTimes = manualTimes.mapIndexed { index, value -> value.ifBlank { calculatedList?.get(index) ?: "" } }
@@ -224,7 +233,9 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
             Location.distanceBetween(location.latitude, location.longitude, nearest.latitude, nearest.longitude, distance)
             val placeLabel = if (distance[0] <= 50000f) nearest.name else "موقعك الحالي"
             city = placeLabel
+            selectedZoneId = java.time.ZoneId.systemDefault().id
             prefs.edit().putString("city", placeLabel)
+                .putString("selected_zone", selectedZoneId)
                 .putFloat("last_latitude", location.latitude.toFloat())
                 .putFloat("last_longitude", location.longitude.toFloat()).apply()
             locationMessage = "تم تحديد إحداثيات موقعك بدقة واستخدامها مباشرة في حساب المواقيت. المنطقة الزمنية: ${java.time.ZoneId.systemDefault().id}"
@@ -278,6 +289,56 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
         } else {
             locationMessage = "رفضت صلاحية الموقع؛ اختيار المحافظة يدوياً متاح دائماً."
         }
+    }
+
+    if (showGlobalCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showGlobalCityPicker = false },
+            title = { Text("اختيار مدينة من العالم") },
+            text = {
+                Column(Modifier.heightIn(max = 520.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("ابحث باسم المدينة بالإنجليزية أو باسم الدولة. قاعدة المدن محفوظة داخل التطبيق وتعمل دون إنترنت.", color = Ink.copy(alpha = .7f), fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = globalCityQuery,
+                        onValueChange = { globalCityQuery = it },
+                        label = { Text("اسم المدينة أو الدولة") },
+                        placeholder = { Text("London, Istanbul, Tokyo...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (globalCityQuery.trim().length < 2) {
+                        Text("اكتب حرفين على الأقل لعرض النتائج.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                    } else if (globalCityResults.isEmpty()) {
+                        Text("لا توجد نتائج مطابقة. جرّب كتابة الاسم بالإنجليزية.", color = Ink.copy(alpha = .6f), fontSize = 12.sp)
+                    } else {
+                        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            globalCityResults.forEach { result ->
+                                TextButton(
+                                    onClick = {
+                                        city = result.label
+                                        selectedZoneId = result.timeZone
+                                        prefs.edit().putString("city", result.label)
+                                            .putString("selected_zone", result.timeZone)
+                                            .putFloat("last_latitude", result.latitude.toFloat())
+                                            .putFloat("last_longitude", result.longitude.toFloat()).apply()
+                                        locationMessage = "تم اختيار المدينة يدوياً من قاعدة GeoNames العالمية. المنطقة الزمنية: ${result.timeZone}"
+                                        showGlobalCityPicker = false
+                                        globalCityQuery = ""
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                        Text(result.name, color = Navy, fontWeight = FontWeight.SemiBold)
+                                        Text(result.country + " • " + result.timeZone, color = Ink.copy(alpha = .6f), fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showGlobalCityPicker = false }) { Text("إغلاق") } }
+        )
     }
 
     if (showEntry) {
@@ -347,14 +408,19 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         cities.forEach { item ->
                             DropdownMenuItem(text = { Text(item.name) }, onClick = {
                                 city = item.name
-                                prefs.edit().remove("last_latitude").remove("last_longitude").putString("city", item.name).apply()
+                                selectedZoneId = "Asia/Baghdad"
+                                prefs.edit().remove("last_latitude").remove("last_longitude")
+                                    .putString("selected_zone", selectedZoneId).putString("city", item.name).apply()
                                 locationMessage = "تم اختيار المحافظة يدوياً"
                                 expanded = false
                             })
                         }
                     }
                 }
-                Text("يُحسب الوقت من إحداثيات موقعك الفعلية والمنطقة الزمنية للهاتف. لا تُرسل الإحداثيات إلى أي خادم.", color = Color.White.copy(alpha = .78f), fontSize = 11.sp)
+                OutlinedButton(onClick = { showGlobalCityPicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.Public, null); Spacer(Modifier.width(8.dp)); Text("اختيار مدينة من جميع دول العالم")
+                }
+                Text("التحديد التلقائي يستخدم إحداثيات GPS والمنطقة الزمنية للهاتف، والاختيار اليدوي يستخدم قاعدة مدن عالمية تعمل دون إنترنت. لا تُرسل إحداثياتك إلى أي خادم.", color = Color.White.copy(alpha = .78f), fontSize = 11.sp)
                 Box {
                     OutlinedButton(onClick = { methodExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                         Text("طريقة الحساب: ${selectedMethod.title}")
