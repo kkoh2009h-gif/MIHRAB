@@ -22,6 +22,22 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.9
+      - name: Download offline worldwide city database
+        run: |
+          mkdir -p app/src/main/assets
+          curl --fail --location --silent --show-error \
+            https://download.geonames.org/export/dump/cities15000.zip \
+            -o /tmp/cities15000.zip
+          unzip -p /tmp/cities15000.zip cities15000.txt > app/src/main/assets/cities15000.txt
+          test "$(wc -l < app/src/main/assets/cities15000.txt)" -gt 20000
+          cat > app/src/main/assets/GEONAMES-LICENSE.txt <<'EOF'
+          GeoNames geographical database
+          Source: https://www.geonames.org/
+          Download: https://download.geonames.org/export/dump/cities15000.zip
+          License: Creative Commons Attribution 4.0 (CC BY 4.0)
+          The database is bundled for offline city search. City names, coordinates,
+          country codes and time-zone identifiers are provided by GeoNames.
+          EOF
       - name: Download verified Tanzil Uthmani Quran text
         run: |
           mkdir -p app/src/main/assets
