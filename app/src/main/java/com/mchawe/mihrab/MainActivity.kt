@@ -56,6 +56,8 @@ private var Navy by mutableStateOf(Color(0xFF101F35))
 private var Gold by mutableStateOf(Color(0xFFC8A96A))
 private var Cream by mutableStateOf(Color(0xFFF6F2E9))
 private var Ink by mutableStateOf(Color(0xFF1C2A3A))
+private var CardSurface by mutableStateOf(Color.White)
+private var PanelBackground by mutableStateOf(Color(0xFF101F35))
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,6 +78,8 @@ private fun MihrabApp() {
         Gold = Color(0xFFC8A96A)
         Cream = if (darkMode) Color(0xFF10141C) else Color(0xFFF6F2E9)
         Ink = if (darkMode) Color(0xFFE1E5EC) else Color(0xFF1C2A3A)
+        CardSurface = if (darkMode) Color(0xFF202733) else Color.White
+        PanelBackground = if (darkMode) Color(0xFF293344) else Color(0xFF101F35)
     }
     val labels = listOf("الرئيسية", "الصلاة", "القرآن", "الأذكار", "المزيد")
     val icons = listOf(
@@ -95,7 +99,7 @@ private fun MihrabApp() {
         Scaffold(
             containerColor = Cream,
             bottomBar = {
-                if (!quranFullscreen) NavigationBar(containerColor = if (darkMode) Color(0xFF202733) else Color.White) {
+                if (!quranFullscreen) NavigationBar(containerColor = CardSurface) {
                     labels.forEachIndexed { index, label ->
                         NavigationBarItem(
                             selected = selected == index,
@@ -166,7 +170,7 @@ private fun HomeScreen(modifier: Modifier = Modifier) {
                 Text("مِحراب", color = Navy, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Text("رفيق يومك وعبادتك", color = Ink.copy(alpha = .65f), fontSize = 13.sp)
             }
-            Surface(color = Navy, shape = RoundedCornerShape(16.dp)) {
+            Surface(color = PanelBackground, shape = RoundedCornerShape(16.dp)) {
                 Icon(Icons.Default.AutoAwesome, null, tint = Gold, modifier = Modifier.padding(12.dp).size(28.dp))
             }
         }
@@ -474,7 +478,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Surface(color = CardSurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -507,7 +511,7 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                 Text("مواقيت اليوم", color = Navy, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Text(dateKey, color = Ink.copy(alpha = .6f), fontSize = 11.sp)
             }
-            Button(onClick = { editTimes = manualTimes; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = Navy)) {
+            Button(onClick = { editTimes = manualTimes; showEntry = true }, colors = ButtonDefaults.buttonColors(containerColor = PanelBackground)) {
                 Icon(Icons.Default.Edit, null); Spacer(Modifier.width(5.dp)); Text("تعديل الأوقات")
             }
         }
