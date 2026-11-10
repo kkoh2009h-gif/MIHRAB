@@ -197,6 +197,14 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
     var asrExpanded by remember { mutableStateOf(false) }
     var locationMessage by remember { mutableStateOf("لم يتم تحديد الموقع بعد") }
     var locating by remember { mutableStateOf(false) }
+    var adhanEnabled by remember { mutableStateOf(prefs.getBoolean("global_adhan_enabled", false)) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted || Build.VERSION.SDK_INT < 33) {
+            prefs.edit().putBoolean("global_adhan_enabled", true).apply()
+            adhanEnabled = true
+            PrayerAlarmScheduler.schedule(context)
+        } else locationMessage = "يجب السماح بالإشعارات حتى تظهر تنبيهات الصلاة."
+    }
     val date = java.time.LocalDate.now()
     val dateKey = date.toString()
     val storageKey = "official_manual_${city}_${dateKey}"
@@ -449,6 +457,34 @@ private fun PrayerScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
+            }
+        }
+        Surface(color = Color.White, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("تنبيهات الأذان", color = Navy, fontWeight = FontWeight.Bold)
+                        Text("تنبيه عند دخول أوقات الصلوات الخمس", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
+                    }
+                    Switch(checked = adhanEnabled, onCheckedChange = { enabled ->
+                        if (enabled) {
+                            if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                prefs.edit().putBoolean("global_adhan_enabled", true).apply()
+                                adhanEnabled = true
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !(context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager).canScheduleExactAlarms()) {
+                                    context.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply { data = Uri.parse("package:" + context.packageName); addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+                                } else PrayerAlarmScheduler.schedule(context)
+                            }
+                        } else {
+                            prefs.edit().putBoolean("global_adhan_enabled", false).apply()
+                            adhanEnabled = false
+                            PrayerAlarmScheduler.cancelAll(context)
+                        }
+                    })
+                }
+                Text("يستخدم صوت التنبيه الافتراضي للهاتف حالياً. قد يحتاج Android إلى السماح بالإشعارات والمنبهات الدقيقة من الإعدادات.", color = Ink.copy(alpha = .65f), fontSize = 11.sp)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
