@@ -68,7 +68,8 @@ class MainActivity : ComponentActivity() {
 private fun MihrabApp() {
     var selected by remember { mutableIntStateOf(0) }
     var quranFullscreen by remember { mutableStateOf(false) }
-    val appPrefs = remember { getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
+    val context = LocalContext.current
+    val appPrefs = remember { context.getSharedPreferences("mihrab", Context.MODE_PRIVATE) }
     var darkMode by remember { mutableStateOf(appPrefs.getBoolean("dark_mode", false)) }
     LaunchedEffect(darkMode) {
         Navy = if (darkMode) Color(0xFFE8EAF0) else Color(0xFF101F35)
