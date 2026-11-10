@@ -23,6 +23,7 @@ object PrayerAlarmScheduler {
     fun schedule(context: Context) {
         val prefs = context.getSharedPreferences("mihrab", Context.MODE_PRIVATE)
         val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (!prefs.getBoolean("global_adhan_enabled", false)) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !manager.canScheduleExactAlarms()) return
         val latitude = prefs.getFloat("last_latitude", 35.4681f).toDouble()
         val longitude = prefs.getFloat("last_longitude", 44.3922f).toDouble()
